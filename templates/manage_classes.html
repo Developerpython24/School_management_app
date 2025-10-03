@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>مدیریت کلاس ها</h2>
+<form method="POST" action="{{ url_for('admin.add_class') }}">
+    <div class="mb-3">
+        <label>نام کلاس</label>
+        <input type="text" name="name" class="form-control" required>
+    </div>
+    <div class="mb-3">
+        <label>پایه</label>
+        <select name="grade_id" class="form-select" required>
+            {% for grade in grades %}
+            <option value="{{ grade.id }}">{{ grade.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary">اضافه کردن</button>
+</form>
+<table class="table mt-4">
+    <thead>
+        <tr><th>نام کلاس</th><th>پایه</th><th>عملیات</th></tr>
+    </thead>
+    <tbody>
+        {% for cls in classes %}
+        <tr>
+            <td>{{ cls.name }}</td>
+            <td>{{ cls.grade.name }}</td>
+            <td>
+                <form method="POST" action="{{ url_for('admin.edit_class', class_id=cls.id) }}" class="d-inline">
+                    <input type="text" name="name" value="{{ cls.name }}" class="form-control d-inline w-auto" style="width:80px;">
+                    <select name="grade_id" class="form-select d-inline w-auto" style="width:100px;">
+                        {% for grade in grades %}
+                        <option value="{{ grade.id }}" {% if grade.id == cls.grade_id %}selected{% endif %}>{{ grade.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-warning">ویرایش</button>
+                </form>
+                <a href="{{ url_for('admin.delete_class', class_id=cls.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('حذف شود؟')">حذف</a>
+                <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#assignTeachers{{ cls.id }}">اختصاص معلم</button>
+                <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#assignStudents{{ cls.id }}">اختصاص دانش‌آموز</button>
+            </td>
+        </tr>
+        <div class="modal fade" id="assignTeachers{{ cls.id }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5>اختصاص معلم به {{ cls.name }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form method="POST" action="{{ url_for('admin.assign_teachers_to_class', class_id=cls.id) }}">
+                        <div class="modal-body">
+                            <select name="teacher_ids" class="form-select" multiple>
+                                {% for teacher in teachers %}
+                                <option value="{{ teacher.id }}" {% if teacher in cls.class_teachers %}selected{% endif %}>{{ teacher.first_name }} {{ teacher.last_name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small>چند انتخاب با Ctrl+کلیک</small>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-primary">ذخیره</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="modal fade" id="assignStudents{{ cls.id }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5>اختصاص دانش‌آموز به {{ cls.name }} (از پایه {{ cls.grade.name }})</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form method="POST" action="{{ url_for('admin.assign_students_to_class', class_id=cls.id) }}">
+                        <div class="modal-body">
+                            <select name="student_ids" class="form-select" multiple>
+                                {% for student in students if student.grade_id == cls.grade_id %}
+                                <option value="{{ student.id }}" {% if student.class_id == cls.id %}selected{% endif %}>{{ student.student_id }} - {{ student.first_name }} {{ student.last_name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small>انتخاب از دانش‌آموزان پایه {{ cls.grade.name }}؛ چند انتخاب با Ctrl+کلیک</small>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-primary">ذخیره</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

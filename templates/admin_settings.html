@@ -1,0 +1,33 @@
+            {% extends "base.html" %}
+            {% block content %}
+            <h2>تنظیمات مدیر</h2>
+            <form method="POST">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label>نام کاربری (قابل تغییر)</label>
+                            <input type="text" name="username" class="form-control" value="{{ admin.username }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label>رمز عبور جدید (خالی بگذارید برای بدون تغییر)</label>
+                            <input type="password" name="new_password" class="form-control" minlength="6">
+                        </div>
+                        <div class="mb-3">
+                            <label>تأیید رمز عبور جدید</label>
+                            <input type="password" name="confirm_password" class="form-control" minlength="6">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label>نام مدرسه</label>
+                            <input type="text" name="school_name" class="form-control" value="{{ admin.school_name }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label>نام مدیر</label>
+                            <input type="text" name="principal_name" class="form-control" value="{{ admin.principal_name }}" required>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">ذخیره</button>
+            </form>
+            {% endblock %}

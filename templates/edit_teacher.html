@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>ویرایش معلم</h2>
+<form method="POST">
+    <div class="mb-3">
+        <label>نام کاربری</label>
+        <input type="text" name="username" class="form-control" value="{{ teacher.username }}" required>
+    </div>
+    <div class="mb-3">
+        <label>رمز عبور جدید (خالی بگذارید برای بدون تغییر)</label>
+        <input type="password" name="password" class="form-control">
+    </div>
+    <div class="row">
+        <div class="col-md-6">
+            <label>نام</label>
+            <input type="text" name="first_name" class="form-control" value="{{ teacher.first_name }}" required>
+        </div>
+        <div class="col-md-6">
+            <label>نام خانوادگی</label>
+            <input type="text" name="last_name" class="form-control" value="{{ teacher.last_name }}" required>
+        </div>
+    </div>
+    <div class="mb-3 mt-3">
+        <label>کلاس‌های تعلق (چند انتخاب)</label>
+        <select name="class_ids" class="form-select" multiple>
+            {% for cls in classes %}
+            <option value="{{ cls.id }}" {% if cls.id in teacher_class_ids %}selected{% endif %}>{{ cls.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary">ذخیره</button>
+    <a href="{{ url_for('admin.manage_teachers') }}" class="btn btn-secondary">انصراف</a>
+</form>
+{% endblock %}

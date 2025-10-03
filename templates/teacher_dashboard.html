@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>داشبورد معلم: {{ teacher.first_name }} {{ teacher.last_name }}</h2>
+<div class="row">
+    {% for cls in classes %}
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>{{ cls.name }}</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    {% for subject in subjects_by_class[cls.name] %}
+                    <li>{{ subject.name }} <a href="{{ url_for('teacher.manage_scores', subject_id=subject.id) }}" class="btn btn-sm btn-outline-primary">نمره</a></li>
+                    {% endfor %}
+                </ul>
+                <a href="{{ url_for('teacher.manage_attendance', class_id=cls.id) }}" class="btn btn-info me-2">حضورغیاب</a>
+                <a href="{{ url_for('teacher.manage_discipline', class_id=cls.id) }}" class="btn btn-warning me-2">بی‌انضباطی</a>
+                <a href="{{ url_for('teacher.manage_skills') }}" class="btn btn-success">مهارت‌ها</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

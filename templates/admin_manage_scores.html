@@ -1,0 +1,53 @@
+            {% extends "base.html" %}
+            {% block content %}
+            <h2>نمرات {{ subject.name }} (ادمین)</h2>
+            <form method="POST" action="{{ url_for('admin.admin_add_score') }}" class="mb-4">
+                <!-- فرم مشابه manage_scores.html -->
+                <div class="row">
+                    <div class="col-md-3">
+                        <select name="student_id" class="form-select">
+                            {% for student in students %}
+                            <option value="{{ student.id }}">{{ student.first_name }} {{ student.last_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="hidden" name="subject_id" value="{{ subject.id }}">
+                        <input type="number" name="score" class="form-control" placeholder="نمره" step="0.25" required>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="date" name="date" class="form-control" required>
+                    </div>
+                    <div class="col-md-3">
+                        <select name="weekday" class="form-select">
+                            <option value="شنبه">شنبه</option>
+                            <option value="یکشنبه">یکشنبه</option>
+                            <!-- بقیه -->
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">ثبت نمره</button>
+                    </div>
+                </div>
+            </form>
+            <table class="table">
+                <thead><tr><th>دانش‌آموز</th><th>نمره</th><th>تاریخ</th><th>روز</th><th>عملیات</th></tr></thead>
+                <tbody>
+                    {% for sc in scores %}
+                    <tr>
+                        <td>{{ sc.student.first_name }} {{ sc.student.last_name }}</td>
+                        <td>{{ sc.score }}</td>
+                        <td>{{ sc.date }}</td>
+                        <td>{{ sc.weekday }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('admin.admin_edit_score', score_id=sc.id) }}" class="d-inline">
+                                <!-- فرم ویرایش مشابه -->
+                                <button type="submit" class="btn btn-sm btn-warning">ویرایش</button>
+                            </form>
+                            <a href="{{ url_for('admin.admin_delete_score', score_id=sc.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('حذف شود؟')">حذف</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endblock %}

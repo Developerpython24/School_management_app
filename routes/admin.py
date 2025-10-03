@@ -1,0 +1,639 @@
+
+
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, session  # فیکس: session اضافه
+from models import db, Admin, Teacher, Grade, Class, Student, Subject, Attendance, DisciplineScore, Score, SkillScore, TeacherClass  # فیکس: TeacherClass اضافه
+from routes.general import login_required
+from utils import generate_excel_report, generate_class_excel_report
+from werkzeug.security import generate_password_hash
+from datetime import date
+from sqlalchemy.exc import IntegrityError
+import pandas as pd
+from sqlalchemy.orm import joinedload  # ← اضافه کن در imports
+from sqlalchemy import func, desc
+import jdatetime  # برای شمسی
+from collections import Counter  # فیکس: import برای most_frequent
+
+admin_bp = Blueprint('admin', __name__)
+
+@admin_bp.route('/dashboard')
+@login_required(role='admin')
+def admin_dashboard():
+    students_count = Student.query.count()
+    teachers_count = Teacher.query.count()
+    classes_count = Class.query.count()
+    admin = Admin.query.first()
+    return render_template('admin_dashboard.html',
+                           students_count=students_count,
+                           teachers_count=teachers_count,
+                           classes_count=classes_count,
+                           admin=admin)
+
+@admin_bp.route('/settings', methods=['GET', 'POST'])
+@login_required(role='admin')
+def admin_settings():
+    admin = Admin.query.first()
+    if request.method == 'POST':
+        new_username = request.form.get('username')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+        school_name = request.form.get('school_name')
+        principal_name = request.form.get('principal_name')
+        
+        # بروزرسانی مدرسه/مدیر
+        admin.school_name = school_name
+        admin.principal_name = principal_name
+        
+        # تغییر username
+        if new_username and new_username != admin.username:
+            if Admin.query.filter_by(username=new_username).first():
+                flash('نام کاربری تکراری است', 'error')
+                return render_template('admin_settings.html', admin=admin)
+            admin.username = new_username
+            session['username'] = new_username  # بروزرسانی session
+        
+        # تغییر password
+        if new_password:
+            if len(new_password) < 6:
+                flash('رمز عبور حداقل 6 کاراکتر باشد', 'error')
+                return render_template('admin_settings.html', admin=admin)
+            if new_password != confirm_password:
+                flash('رمز عبور و تأیید مطابقت ندارد', 'error')
+                return render_template('admin_settings.html', admin=admin)
+            admin.password_hash = generate_password_hash(new_password)
+            flash('رمز عبور تغییر یافت', 'success')
+        
+        try:
+            db.session.commit()
+            flash('تنظیمات با موفقیت ذخیره شد', 'success')
+            return redirect(url_for('admin.admin_dashboard'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'خطا در ذخیره: {str(e)}', 'error')
+    return render_template('admin_settings.html', admin=admin)
+
+@admin_bp.route('/grades')
+@login_required(role='admin')
+def manage_grades():
+    grades = Grade.query.all()
+    return render_template('manage_grades.html', grades=grades)
+
+@admin_bp.route('/grades/add', methods=['POST'])
+@login_required(role='admin')
+def add_grade():
+    name = request.form.get('name')
+    if name:
+        try:
+            grade = Grade(name=name)
+            db.session.add(grade)
+            db.session.commit()
+            flash('پایه تحصیلی اضافه شد', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'خطا در اضافه: {str(e)}', 'error')
+    return redirect(url_for('admin.manage_grades'))
+
+@admin_bp.route('/grades/edit/<int:grade_id>', methods=['POST'])
+@login_required(role='admin')
+def edit_grade(grade_id):
+    grade = Grade.query.get_or_404(grade_id)
+    name = request.form.get('name')
+    if name:
+        try:
+            grade.name = name
+            db.session.commit()
+            flash('پایه تحصیلی ویرایش شد', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'خطا در ویرایش: {str(e)}', 'error')
+    return redirect(url_for('admin.manage_grades'))
+
+@admin_bp.route('/grades/delete/<int:grade_id>')
+@login_required(role='admin')
+def delete_grade(grade_id):
+    grade = Grade.query.get_or_404(grade_id)
+    if grade.classes:
+        flash('نمی‌توان پایه را حذف کرد؛ کلاس‌هایی وابسته وجود دارد', 'error')
+    else:
+        try:
+            db.session.delete(grade)
+            db.session.commit()
+            flash('پایه تحصیلی حذف شد', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'خطا در حذف: {str(e)}', 'error')
+    return redirect(url_for('admin.manage_grades'))
+
+@admin_bp.route('/classes')
+@login_required(role='admin')
+def manage_classes():
+    classes = Class.query.all()
+    grades = Grade.query.all()
+    teachers = Teacher.query.all()
+    students = Student.query.all()
+    return render_template('manage_classes.html', classes=classes, grades=grades, teachers=teachers, students=students)
+
+@admin_bp.route('/classes/add', methods=['POST'])
+@login_required(role='admin')
+def add_class():
+    name = request.form.get('name')
+    grade_id = request.form.get('grade_id')
+    if name and grade_id:
+        try:
+            class_obj = Class(name=name, grade_id=int(grade_id))
+            db.session.add(class_obj)
+            db.session.commit()
+            flash('کلاس با موفقیت اضافه شد', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'خطا در اضافه: {str(e)}', 'error')
+    return redirect(url_for('admin.manage_classes'))
+
+@admin_bp.route('/classes/edit/<int:class_id>', methods=['POST'])
+@login_required(role='admin')
+def edit_class(class_id):
+    cls = Class.query.get_or_404(class_id)
+    name = request.form.get('name')
+    grade_id = request.form.get('grade_id')
+    if name and grade_id:
+        try:
+            cls.name = name
+            cls.grade_id = int(grade_id)
+            db.session.commit()
+            flash('کلاس ویرایش شد', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'خطا در ویرایش: {str(e)}', 'error')
+    return redirect(url_for('admin.manage_classes'))
+
+@admin_bp.route('/classes/delete/<int:class_id>')
+@login_required(role='admin')
+def delete_class(class_id):
+    cls = Class.query.get_or_404(class_id)
+    if cls.students or cls.subjects:
+        flash('نمی‌توان کلاس را حذف کرد؛ دانش‌آموز یا درس وابسته وجود دارد', 'error')
+    else:
+        try:
+            db.session.delete(cls)
+            db.session.commit()
+            flash('کلاس حذف شد', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'خطا در حذف: {str(e)}', 'error')
+    return redirect(url_for('admin.manage_classes'))
+
+@admin_bp.route('/classes/assign_teachers/<int:class_id>', methods=['POST'])
+@login_required(role='admin')
+def assign_teachers_to_class(class_id):
+    cls = Class.query.get_or_404(class_id)
+    teacher_ids = request.form.getlist('teacher_ids')
+    teacher_ids = list(set([tid for tid in teacher_ids if tid]))
+    try:
+        for tc in cls.class_teachers:
+            db.session.delete(tc)
+        for tid in teacher_ids:
+            teacher = Teacher.query.get(int(tid))
+            if teacher:
+                tc = TeacherClass(teacher_id=int(tid), class_id=class_id)
+                db.session.add(tc)
+        db.session.commit()
+        flash('معلمان با موفقیت اختصاص یافتند', 'success')
+    except IntegrityError:
+        db.session.rollback()
+        flash('خطا در اختصاص: تکراری یا نامعتبر', 'error')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'خطا: {str(e)}', 'error')
+    return redirect(url_for('admin.manage_classes'))
+
+@admin_bp.route('/classes/assign_students/<int:class_id>', methods=['POST'])
+@login_required(role='admin')
+def assign_students_to_class(class_id):
+    cls = Class.query.get_or_404(class_id)
+    student_ids = request.form.getlist('student_ids')
+    grade_id = cls.grade_id
+    try:
+        for sid in student_ids:
+            if sid:
+                student = Student.query.get(int(sid))
+                if student and student.grade_id == grade_id:
+                    student.class_id = class_id
+        db.session.commit()
+        flash('دانش‌آموزان با موفقیت اختصاص یافتند', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'خطا: {str(e)}', 'error')
+    return redirect(url_for('admin.manage_classes'))
+
+@admin_bp.route('/teachers')
+@login_required(role='admin')
+def manage_teachers():
+    teachers = Teacher.query.all()
+    classes = Class.query.all()
+    return render_template('manage_teachers.html', teachers=teachers, classes=classes)
+
+@admin_bp.route('/teachers/add', methods=['POST'])
+@login_required(role='admin')
+def add_teacher():
+    username = request.form.get('username')
+    password = request.form.get('password')
+    first_name = request.form.get('first_name')
+    last_name = request.form.get('last_name')
+    class_ids = request.form.getlist('class_ids')
+    if username and password and first_name and last_name:
+        try:
+            teacher = Teacher(
+                username=username,
+                password_hash=generate_password_hash(password),
+                first_name=first_name,
+                last_name=last_name
+            )
+            db.session.add(teacher)
+            db.session.flush()
+            for cid in class_ids:
+                if cid:
+                    tc = TeacherClass(teacher_id=teacher.id, class_id=int(cid))
+                    db.session.add(tc)
+            db.session.commit()
+            flash('معلم با موفقیت اضافه شد', 'success')
+        except IntegrityError:
+            db.session.rollback()
+            flash('نام کاربری تکراری است', 'error')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'خطا: {str(e)}', 'error')
+    return redirect(url_for('admin.manage_teachers'))
+
+@admin_bp.route('/teachers/edit/<int:teacher_id>', methods=['GET', 'POST'])
+@login_required(role='admin')
+def edit_teacher(teacher_id):
+    teacher = Teacher.query.get_or_404(teacher_id)
+    classes = Class.query.all()
+    if request.method == 'POST':
+        try:
+            teacher.first_name = request.form.get('first_name')
+            teacher.last_name = request.form.get('last_name')
+            teacher.username = request.form.get('username')
+            new_password = request.form.get('password')
+            if new_password:
+                teacher.password_hash = generate_password_hash(new_password)
+            class_ids = request.form.getlist('class_ids')
+            for tc in teacher.teacher_classes:
+                db.session.delete(tc)
+            for cid in class_ids:
+                if cid:
+                    tc = TeacherClass(teacher_id=teacher_id, class_id=int(cid))
+                    db.session.add(tc)
+            db.session.commit()
+            flash('معلم ویرایش شد', 'success')
+            return redirect(url_for('admin.manage_teachers'))
+        except IntegrityError:
+            db.session.rollback()
+            flash('نام کاربری تکراری است', 'error')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'خطا: {str(e)}', 'error')
+    return render_template('edit_teacher.html', teacher=teacher, classes=classes)
+
+@admin_bp.route('/teachers/delete/<int:teacher_id>')
+@login_required(role='admin')
+def delete_teacher(teacher_id):
+    teacher = Teacher.query.get_or_404(teacher_id)
+    if teacher.subjects:
+        flash('نمی‌توان معلم را حذف کرد؛ درسی وابسته وجود دارد', 'error')
+    else:
+        try:
+            db.session.delete(teacher)
+            db.session.commit()
+            flash('معلم حذف شد', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'خطا: {str(e)}', 'error')
+    return redirect(url_for('admin.manage_teachers'))
+
+@admin_bp.route('/students')
+@login_required(role='admin')
+def manage_students():
+    students = Student.query.all()
+    grades = Grade.query.all()
+    return render_template('manage_students.html', students=students, grades=grades)
+
+@admin_bp.route('/students/add', methods=['POST'])
+@login_required(role='admin')
+def add_student():
+    student_id = request.form.get('student_id')
+    first_name = request.form.get('first_name')
+    last_name = request.form.get('last_name')
+    grade_id = request.form.get('grade_id')
+    parent_phone = request.form.get('parent_phone') or None
+    if all([student_id, first_name, last_name, grade_id]):
+        if Student.query.filter_by(student_id=student_id).first():
+            flash('کد دانش‌آموزی تکراری است', 'error')
+            return redirect(url_for('admin.manage_students'))
+        try:
+            student = Student(
+                student_id=student_id,
+                first_name=first_name,
+                last_name=last_name,
+                grade_id=int(grade_id),
+                class_id=None,
+                parent_phone=parent_phone
+            )
+            db.session.add(student)
+            db.session.commit()
+            flash('دانش آموز با موفقیت اضافه شد', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'خطا: {str(e)}', 'error')
+    return redirect(url_for('admin.manage_students'))
+
+@admin_bp.route('/students/edit/<int:student_id>', methods=['GET', 'POST'],endpoint='admin_edit_student_view')
+@login_required(role='admin')
+def edit_student(student_id):
+    student = Student.query.get_or_404(student_id)
+    grades = Grade.query.all()
+    if request.method == 'POST':
+        try:
+            student.student_id = request.form.get('student_id')
+            student.first_name = request.form.get('first_name')
+            student.last_name = request.form.get('last_name')
+            student.grade_id = int(request.form.get('grade_id'))
+            student.parent_phone = request.form.get('parent_phone') or None
+            db.session.commit()
+            flash('دانش‌آموز ویرایش شد', 'success')
+            return redirect(url_for('admin.manage_students'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'خطا: {str(e)}', 'error')
+    return render_template('edit_student.html', student=student, grades=grades)
+
+@admin_bp.route('/students/import', methods=['POST'])
+@login_required(role='admin')
+def import_students():
+    if 'csv_file' not in request.files:
+        flash('فایل CSV انتخاب نشده', 'error')
+        return redirect(url_for('admin.manage_students'))
+    file = request.files['csv_file']
+    if file.filename == '':
+        flash('فایل CSV انتخاب نشده', 'error')
+        return redirect(url_for('admin.manage_students'))
+    try:
+        df = pd.read_csv(file, encoding='utf-8')
+        required_cols = ['student_id', 'first_name', 'last_name', 'grade_id']
+        if not all(col in df.columns for col in required_cols):
+            flash('ستون‌های مورد نیاز: student_id, first_name, last_name, grade_id', 'error')
+            return redirect(url_for('admin.manage_students'))
+        success_count = 0
+        for _, row in df.iterrows():
+            if Student.query.filter_by(student_id=row['student_id']).first():
+                continue
+            student = Student(
+                student_id=str(row['student_id']),
+                first_name=str(row['first_name']),
+                last_name=str(row['last_name']),
+                grade_id=int(row['grade_id']),
+                class_id=None
+            )
+            db.session.add(student)
+            success_count += 1
+        db.session.commit()
+        flash(f'{success_count} دانش‌آموز با موفقیت وارد شد', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'خطا در import: {str(e)}', 'error')
+    return redirect(url_for('admin.manage_students'))
+
+@admin_bp.route('/students/edit/<int:student_id>', methods=['GET', 'POST'])
+@login_required(role='admin')
+def edit_student(student_id):
+    student = Student.query.get_or_404(student_id)
+    grades = Grade.query.all()
+    if request.method == 'POST':
+        try:
+            student.student_id = request.form.get('student_id')
+            student.first_name = request.form.get('first_name')
+            student.last_name = request.form.get('last_name')
+            student.grade_id = int(request.form.get('grade_id'))
+            db.session.commit()
+            flash('دانش‌آموز ویرایش شد', 'success')
+            return redirect(url_for('admin.manage_students'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'خطا: {str(e)}', 'error')
+    return render_template('edit_student.html', student=student, grades=grades)
+
+@admin_bp.route('/students/delete/<int:student_id>')
+@login_required(role='admin')
+def delete_student(student_id):
+    student = Student.query.get_or_404(student_id)
+    if student.scores or student.skills:
+        flash('نمی‌توان دانش‌آموز را حذف کرد؛ نمره‌ای ثبت شده', 'error')
+    else:
+        try:
+            db.session.delete(student)
+            db.session.commit()
+            flash('دانش‌آموز حذف شد', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'خطا: {str(e)}', 'error')
+    return redirect(url_for('admin.manage_students'))
+
+@admin_bp.route('/subjects')
+@login_required(role='admin')
+def manage_subjects():
+    subjects = Subject.query.all()
+    classes = Class.query.all()
+    teachers = Teacher.query.all()
+    return render_template('manage_subjects.html', subjects=subjects, classes=classes, teachers=teachers)
+
+@admin_bp.route('/subjects/add', methods=['POST'])
+@login_required(role='admin')
+def add_subject():
+    name = request.form.get('name')
+    class_id = request.form.get('class_id')
+    teacher_id = request.form.get('teacher_id')
+    if all([name, class_id, teacher_id]):
+        try:
+            subject = Subject(name=name, class_id=int(class_id), teacher_id=int(teacher_id))
+            db.session.add(subject)
+            db.session.commit()
+            flash('درس با موفقیت اضافه شد', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'خطا: {str(e)}', 'error')
+    return redirect(url_for('admin.manage_subjects'))
+
+@admin_bp.route('/subjects/edit/<int:subject_id>', methods=['POST'])
+@login_required(role='admin')
+def edit_subject(subject_id):
+    subject = Subject.query.get_or_404(subject_id)
+    try:
+        subject.name = request.form.get('name')
+        subject.class_id = int(request.form.get('class_id'))
+        subject.teacher_id = int(request.form.get('teacher_id'))
+        db.session.commit()
+        flash('درس ویرایش شد', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'خطا: {str(e)}', 'error')
+    return redirect(url_for('admin.manage_subjects'))
+
+@admin_bp.route('/subjects/delete/<int:subject_id>')
+@login_required(role='admin')
+def delete_subject(subject_id):
+    subject = Subject.query.get_or_404(subject_id)
+    if subject.scores:
+        flash('نمی‌توان درس را حذف کرد؛ نمره‌ای ثبت شده', 'error')
+    else:
+        try:
+            db.session.delete(subject)
+            db.session.commit()
+            flash('درس حذف شد', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'خطا: {str(e)}', 'error')
+    return redirect(url_for('admin.manage_subjects'))
+
+@admin_bp.route('/attendance')
+@login_required(role='admin')
+def admin_attendance():
+    attendances = Attendance.query.options(joinedload(Attendance.student), joinedload(Attendance.class_), joinedload(Attendance.teacher)).all()
+    absent_count = len([att for att in attendances if att.status == 'absent'])
+    
+    # تبدیل شمسی
+    for att in attendances:
+        jdate = jdatetime.date.fromgregorian(date=att.date).strftime('%Y/%m/%d')
+        att.jdate = jdate
+    
+    return render_template('admin_attendance.html', attendances=attendances, absent_count=absent_count)
+
+@admin_bp.route('/discipline')
+@login_required(role='admin')
+def admin_discipline():
+    disciplines = DisciplineScore.query.options(joinedload(DisciplineScore.student), joinedload(DisciplineScore.teacher)).all()
+    negative_count = len([disc for disc in disciplines if disc.score < 0])
+    
+    # تبدیل شمسی
+    for disc in disciplines:
+        jdate = jdatetime.date.fromgregorian(date=disc.date).strftime('%Y/%m/%d')
+        disc.jdate = jdate
+    
+    return render_template('admin_discipline.html', disciplines=disciplines, negative_count=negative_count)
+
+@admin_bp.route('/reports')
+@login_required(role='admin')
+def reports():
+    students = Student.query.all()
+    classes = Class.query.all()
+    return render_template('reports.html', students=students, classes=classes)
+
+
+@admin_bp.route('/reports/generate', methods=['POST'])
+@login_required(role='admin')
+def generate_report():
+    report_type = request.form.get('report_type')  # individual/class
+    student_id = request.form.get('student_id') or None
+    class_id = request.form.get('class_id') or None
+    from_date_str = request.form.get('from_date') or None  # شمسی از
+    to_date_str = request.form.get('to_date') or None  # شمسی تا
+    period_type = request.form.get('period_type', 'daily')  # daily/monthly/quarterly
+    report_option = request.form.get('report_option', 'average')  # average/total/most_frequent
+    include_skills = request.form.get('include_skills') == 'on'
+    format_type = request.form.get('format', 'html')  # html/excel
+
+    # تبدیل شمسی به میلادی
+    from_date = None
+    to_date = None
+    if from_date_str:
+        try:
+            j_from = jdatetime.datetime.strptime(from_date_str, '%Y/%m/%d').togregorian().date()
+            from_date = j_from
+        except:
+            flash('تاریخ از نامعتبر', 'error')
+            return redirect(url_for('admin.reports'))
+    if to_date_str:
+        try:
+            j_to = jdatetime.datetime.strptime(to_date_str, '%Y/%m/%d').togregorian().date()
+            to_date = j_to
+        except:
+            flash('تاریخ تا نامعتبر', 'error')
+            return redirect(url_for('admin.reports'))
+
+    try:
+        if report_type == 'individual' and student_id:
+            student = Student.query.options(joinedload(Student.scores)).get(student_id)
+            base_query = Score.query.filter_by(student_id=student_id)
+            if from_date:
+                base_query = base_query.filter(Score.date >= from_date)
+            if to_date:
+                base_query = base_query.filter(Score.date <= to_date)
+            scores = base_query.all()
+
+            # فیکس: فیلتر دوره (مثال: ماه جاری برای monthly، فصل جاری برای quarterly)
+            if period_type == 'monthly':
+                current_month = jdatetime.date.today().month
+                scores = [s for s in scores if jdatetime.date.fromgregorian(s.date).month == current_month]
+            elif period_type == 'quarterly':
+                current_quarter = (jdatetime.date.today().month - 1) // 3 + 1
+                scores = [s for s in scores if ((jdatetime.date.fromgregorian(s.date).month - 1) // 3 + 1) == current_quarter]
+
+            # گزینه گزارش
+            if report_option == 'total':
+                report_data = sum(s.score for s in scores) if scores else 0
+            elif report_option == 'most_frequent':
+                counter = Counter(s.score for s in scores)
+                report_data = counter.most_common(1)[0][0] if counter else 0  # فقط score پرتکرار
+            else:  # average
+                report_data = sum(s.score for s in scores) / len(scores) if scores else 0
+
+            skills = SkillScore.query.filter_by(student_id=student_id).all() if include_skills else []
+
+            if format_type == 'excel':
+                return generate_excel_report(student, scores, skills, f"{from_date_str or ''} to {to_date_str or ''}")
+            else:
+                return render_template('chart_report.html', student=student, scores=scores, report_type=report_type, report_data=report_data, period_type=period_type)
+
+        elif report_type == 'class' and class_id:
+            class_obj = Class.query.options(joinedload(Class.students).joinedload(Student.scores)).get(class_id)
+            students = class_obj.students if class_obj.students else []
+            base_query = Score.query.join(Student).filter(Student.class_id == class_id)
+            if from_date:
+                base_query = base_query.filter(Score.date >= from_date)
+            if to_date:
+                base_query = base_query.filter(Score.date <= to_date)
+            all_scores = base_query.all()  # فیکس: استفاده از all_scores برای فیلتر
+
+            # گزینه گزارش (بر اساس all_scores)
+            if report_option == 'average':
+                avg_data = {}
+                for s in students:
+                    s_scores = [sc for sc in all_scores if sc.student_id == s.id]  # فیلتر از all_scores
+                    avg_data[s.id] = sum(sc.score for sc in s_scores) / len(s_scores) if s_scores else 0
+                report_data = [avg_data[s.id] for s in students]  # list برای چارت
+            elif report_option == 'total':
+                report_data = [sum(sc.score for sc in all_scores if sc.student_id == s.id) for s in students]
+            elif report_option == 'most_frequent':
+                report_data = []
+                for s in students:
+                    s_scores = [sc.score for sc in all_scores if sc.student_id == s.id]
+                    counter = Counter(s_scores)
+                    most_freq = counter.most_common(1)[0][0] if counter else 0
+                    report_data.append(most_freq)
+
+            # فیلتر دوره (مشابه individual، روی all_scores)
+            if period_type == 'monthly':
+                current_month = jdatetime.date.today().month
+                all_scores = [sc for sc in all_scores if jdatetime.date.fromgregorian(sc.date).month == current_month]
+            elif period_type == 'quarterly':
+                current_quarter = (jdatetime.date.today().month - 1) // 3 + 1
+                all_scores = [sc for sc in all_scores if ((jdatetime.date.fromgregorian(sc.date).month - 1) // 3 + 1) == current_quarter]
+
+            if format_type == 'excel':
+                return generate_class_excel_report(class_obj, students, f"{from_date_str or ''} to {to_date_str or ''}", include_skills)
+            else:
+                return render_template('class_chart_report.html', class_obj=class_obj, students=students, report_type=report_type, report_data=report_data, period_type=period_type)
+
+        flash('لطفا همه فیلدها را پر کنید', 'error')
+        return redirect(url_for('admin.reports'))
+    except Exception as e:
+        flash(f'خطا در گزارش: {str(e)}', 'error')
+        return redirect(url_for('admin.reports'))

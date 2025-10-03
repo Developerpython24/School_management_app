@@ -1,0 +1,45 @@
+            {% extends "base.html" %}
+            {% block content %}
+            <h2>نمرات مهارتی</h2>
+            <form method="POST" action="{{ url_for('teacher.add_skill_score') }}" class="mb-4">
+                <div class="row">
+                    <div class="col-md-3">
+                        <select name="student_id" class="form-select">
+                            {% for student in students %}
+                            <option value="{{ student.id }}">{{ student.first_name }} {{ student.last_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select name="skill_name" class="form-select">
+                            {% for skill in skills %}
+                            <option value="{{ skill }}">{{ skill }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="number" name="score" class="form-control" placeholder="نمره" step="0.25" required>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="text" name="date" class="form-control" placeholder="تاریخ شمسی YYYY/MM/DD" required>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">ثبت</button>
+                    </div>
+                </div>
+            </form>
+            <table class="table">
+                <thead><tr><th>دانش‌آموز</th><th>مهارت</th><th>نمره</th><th>تاریخ (شمسی)</th><th>عملیات</th></tr></thead>
+                <tbody>
+                    {% for sk in skill_scores %}
+                    <tr>
+                        <td>{{ sk.student.first_name }} {{ sk.student.last_name }}</td>
+                        <td>{{ sk.skill_name }}</td>
+                        <td>{{ sk.score }}</td>
+                        <td>{{ sk.jdate }}</td>  # فیکس: استفاده از jdate پاس‌شده
+                        <td><a href="{{ url_for('teacher.delete_skill_score', skill_id=sk.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('حذف شود؟')">حذف</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endblock %}

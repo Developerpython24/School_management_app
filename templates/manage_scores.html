@@ -1,0 +1,84 @@
+            {% extends "base.html" %}
+            {% block content %}
+            <h2>نمرات {{ subject.name }}</h2>
+            <form method="POST" action="{{ url_for('teacher.add_score') }}" class="mb-4">
+                <div class="row">
+                    <div class="col-md-3">
+                        <select name="student_id" class="form-select" required>
+                            {% for student in students %}
+                            <option value="{{ student.id }}">{{ student.first_name }} {{ student.last_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="hidden" name="subject_id" value="{{ subject.id }}">
+                        <input type="number" name="score" class="form-control" placeholder="نمره" step="0.25" min="0" max="20" required>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="text" name="date" class="form-control" placeholder="تاریخ شمسی YYYY/MM/DD" required>
+                    </div>
+                    <div class="col-md-3">
+                        <select name="weekday" class="form-select" required>
+                            <option value="">روز هفته را انتخاب کنید</option>
+                            <option value="شنبه">شنبه</option>
+                            <option value="یکشنبه">یکشنبه</option>
+                            <option value="دوشنبه">دوشنبه</option>
+                            <option value="سه‌شنبه">سه‌شنبه</option>
+                            <option value="چهارشنبه">چهارشنبه</option>
+                            <option value="پنجشنبه">پنجشنبه</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">ثبت نمره</button>
+                    </div>
+                </div>
+            </form>
+            <table class="table table-striped">
+                <thead class="table-dark">
+                    <tr><th>دانش‌آموز</th><th>نمره</th><th>تاریخ (شمسی)</th><th>روز</th><th>عملیات</th></tr>
+                </thead>
+                <tbody>
+                    {% for sc in scores %}
+                    <tr>
+                        <td>{{ sc.student.first_name }} {{ sc.student.last_name }}</td>
+                        <td>{{ sc.score }}</td>
+                        <td>{{ sc.jdate or jdatetime.date.fromgregorian(date=sc.date).strftime('%Y/%m/%d') }}</td>
+                        <td>{{ sc.weekday }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('teacher.edit_score', score_id=sc.id) }}" class="d-inline">
+                                <input type="number" name="score" value="{{ sc.score }}" class="form-control d-inline w-auto" style="width:60px;" min="0" max="20">
+                                <input type="text" name="date" value="{{ sc.jdate or jdatetime.date.fromgregorian(date=sc.date).strftime('%Y/%m/%d') }}" class="form-control d-inline w-auto" style="width:100px;">
+                                <select name="weekday" class="form-select d-inline w-auto" style="width:80px;">
+                                    <option value="شنبه" {% if sc.weekday == 'شنبه' %}selected{% endif %}>شنبه</option>
+                                    <option value="یکشنبه" {% if sc.weekday == 'یکشنبه' %}selected{% endif %}>یکشنبه</option>
+                                    <option value="دوشنبه" {% if sc.weekday == 'دوشنبه' %}selected{% endif %}>دوشنبه</option>
+                                    <option value="سه‌شنبه" {% if sc.weekday == 'سه‌شنبه' %}selected{% endif %}>سه‌شنبه</option>
+                                    <option value="چهارشنبه" {% if sc.weekday == 'چهارشنبه' %}selected{% endif %}>چهارشنبه</option>
+                                    <option value="پنجشنبه" {% if sc.weekday == 'پنجشنبه' %}selected{% endif %}>پنجشنبه</option>
+                                </select>
+                                <button type="submit" class="btn btn-sm btn-warning">ویرایش</button>
+                            </form>
+                            <a href="{{ url_for('teacher.delete_score', score_id=sc.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('حذف شود؟')">حذف</a>  <!-- فیکس: url_for درست -->
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" class="text-center text-muted">هیچ نمره‌ای ثبت نشده.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endblock %}
+            {% block scripts %}
+            <script>
+                const dateInput = document.querySelector('input[name="date"]');
+                if (dateInput) {
+                    dateInput.addEventListener('input', function() {
+                        const value = this.value;
+                        if (!/^\d{4}\/\d{2}\/\d{2}$/.test(value)) {
+                            this.setCustomValidity('فرمت: YYYY/MM/DD');
+                        } else {
+                            this.setCustomValidity('');
+                        }
+                    });
+                }
+            </script>
+            {% endblock %}

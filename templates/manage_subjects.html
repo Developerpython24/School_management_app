@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>مدیریت دروس</h2>
+<form method="POST" action="{{ url_for('admin.add_subject') }}">
+    <div class="mb-3">
+        <label>نام درس</label>
+        <input type="text" name="name" class="form-control" required>
+    </div>
+    <div class="mb-3">
+        <label>کلاس</label>
+        <select name="class_id" class="form-select" required>
+            {% for cls in classes %}
+            <option value="{{ cls.id }}">{{ cls.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="mb-3">
+        <label>معلم</label>
+        <select name="teacher_id" class="form-select" required>
+            {% for teacher in teachers %}
+            <option value="{{ teacher.id }}">{{ teacher.first_name }} {{ teacher.last_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary">اضافه کردن</button>
+</form>
+<table class="table mt-4">
+    <thead>
+        <tr><th>نام درس</th><th>کلاس</th><th>معلم</th><th>عملیات</th></tr>
+    </thead>
+    <tbody>
+        {% for subject in subjects %}
+        <tr>
+            <td>{{ subject.name }}</td>
+            <td>{{ subject.class_.name }}</td>
+            <td>{{ subject.teacher.first_name }} {{ subject.teacher.last_name }}</td>
+            <td>
+                <form method="POST" action="{{ url_for('admin.edit_subject', subject_id=subject.id) }}" class="d-inline">
+                    <input type="text" name="name" value="{{ subject.name }}" class="form-control d-inline w-auto" style="width:80px;">
+                    <select name="class_id" class="form-select d-inline w-auto" style="width:100px;">
+                        {% for cls in classes %}
+                        <option value="{{ cls.id }}" {% if subject.class_id == cls.id %}selected{% endif %}>{{ cls.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="teacher_id" class="form-select d-inline w-auto" style="width:120px;">
+                        {% for t in teachers %}
+                        <option value="{{ t.id }}" {% if subject.teacher_id == t.id %}selected{% endif %}>{{ t.first_name }} {{ t.last_name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-warning">ویرایش</button>
+                </form>
+                <a href="{{ url_for('admin.delete_subject', subject_id=subject.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('حذف شود؟')">حذف</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

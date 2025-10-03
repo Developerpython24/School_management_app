@@ -1,0 +1,9 @@
+flask==3.0.3
+flask-sqlalchemy==3.1.1
+werkzeug==3.0.3
+gunicorn==21.2.0  # WSGI server برای production
+pandas==2.2.2
+openpyxl==3.1.2
+jdatetime==4.1.0
+kavenegar==1.1.2  # SMS
+psycopg2-binary==2.9.9  # PostgreSQL adapter

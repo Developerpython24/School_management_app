@@ -1,0 +1,24 @@
+            {% extends "base.html" %}
+            {% block content %}
+            <h2>لیست بی‌انضباطی (تعداد: {{ disciplines|length }})</h2>
+            {% if negative_count > 0 %}
+            <div class="alert alert-danger">تعداد نکات منفی: {{ negative_count }}</div>
+            {% endif %}
+            <table class="table">
+                <thead><tr><th>دانش‌آموز</th><th>نوع</th><th>نمره</th><th>تاریخ (شمسی)</th><th>معلم</th></tr></thead>
+                <tbody>
+                    {% for disc in disciplines %}
+                    <tr>
+                        <td>{{ disc.student.first_name }} {{ disc.student.last_name if disc.student else 'نامشخص' }}</td>
+                        <td>{{ disc.discipline_type }}</td>
+                        <td>{{ disc.score }}</td>
+                        <td>{{ disc.jdate }}</td>  <!-- فیکس: استفاده از jdate پاس‌شده -->
+                        <td>{{ disc.teacher.first_name }} {{ disc.teacher.last_name if disc.teacher else 'نامشخص' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% if disciplines|length == 0 %}
+            <p class="text-muted">هیچ بی‌انضباطی ثبت نشده. از داشبورد معلم ثبت کنید.</p>
+            {% endif %}
+            {% endblock %}

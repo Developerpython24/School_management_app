@@ -1,0 +1,66 @@
+            {% extends "base.html" %}
+            {% block content %}
+            <h2>گزارش‌ها</h2>
+            <form method="POST" action="{{ url_for('admin.generate_report') }}">
+                <div class="row mb-2">
+                    <div class="col-md-3">
+                        <select name="report_type" class="form-select" required>
+                            <option value="individual">فردی</option>
+                            <option value="class">کلاس</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select name="student_id" class="form-select d-none individual" required>
+                            {% for student in students %}
+                            <option value="{{ student.id }}">{{ student.first_name }} {{ student.last_name }}</option>
+                            {% endfor %}
+                        </select>
+                        <select name="class_id" class="form-select d-none class" required>
+                            {% for cls in classes %}
+                            <option value="{{ cls.id }}">{{ cls.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="text" name="from_date" class="form-control" placeholder="از تاریخ (شمسی YYYY/MM/DD)">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="text" name="to_date" class="form-control" placeholder="تا تاریخ (شمسی YYYY/MM/DD)">
+                    </div>
+                    <div class="col-md-2">
+                        <select name="period_type" class="form-select">
+                            <option value="daily">روزانه</option>
+                            <option value="monthly">ماهانه</option>
+                            <option value="quarterly">فصلی</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-md-3">
+                        <select name="report_option" class="form-select">
+                            <option value="average">میانگین نمرات</option>
+                            <option value="total">جمع نمرات</option>
+                            <option value="most_frequent">پرتکرارترین نمره</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-check-label"><input type="checkbox" name="include_skills" class="form-check-input"> شامل مهارت‌ها</label>
+                    </div>
+                    <div class="col-md-3">
+                        <select name="format" class="form-select">
+                            <option value="html">چارت + جدول</option>
+                            <option value="excel">Excel</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary">تولید گزارش</button>
+                    </div>
+                </div>
+            </form>
+            <script>
+                document.querySelector('[name="report_type"]').addEventListener('change', function() {
+                    document.querySelector('.individual').classList.toggle('d-none', this.value !== 'individual');
+                    document.querySelector('.class').classList.toggle('d-none', this.value !== 'class');
+                });
+            </script>
+            {% endblock %}

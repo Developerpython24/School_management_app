@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>مدیریت پایه های تحصیلی</h2>
+<form method="POST" action="{{ url_for('admin.add_grade') }}">
+    <div class="input-group mb-3">
+        <input type="text" name="name" class="form-control" placeholder="نام پایه (مثل هفتم)" required>
+        <button type="submit" class="btn btn-primary">اضافه کردن</button>
+    </div>
+</form>
+<table class="table">
+    <thead>
+        <tr><th>نام</th><th>عملیات</th></tr>
+    </thead>
+    <tbody>
+        {% for grade in grades %}
+        <tr>
+            <td>{{ grade.name }}</td>
+            <td>
+                <form method="POST" action="{{ url_for('admin.edit_grade', grade_id=grade.id) }}" class="d-inline">
+                    <input type="text" name="name" value="{{ grade.name }}" class="form-control d-inline w-auto" style="width:100px;">
+                    <button type="submit" class="btn btn-sm btn-warning">ویرایش</button>
+                </form>
+                <a href="{{ url_for('admin.delete_grade', grade_id=grade.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('حذف شود؟')">حذف</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

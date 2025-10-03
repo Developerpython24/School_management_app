@@ -1,0 +1,46 @@
+            {% extends "base.html" %}
+            {% block content %}
+            <h2>بی‌انضباطی - {{ cls.name }}</h2>
+            <form method="POST" action="{{ url_for('teacher.add_discipline') }}" class="mb-4">
+                <div class="row">
+                    <div class="col-md-3">
+                        <select name="student_id" class="form-select">
+                            {% for student in students %}
+                            <option value="{{ student.id }}">{{ student.first_name }} {{ student.last_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="hidden" name="class_id" value="{{ cls.id }}">
+                        <select name="discipline_type" class="form-select">
+                            {% for disc in disciplines %}
+                            <option value="{{ disc }}">{{ disc }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="number" name="score" class="form-control" placeholder="نمره (منفی)" step="0.25" required>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="text" name="date" class="form-control" placeholder="شمسی YYYY/MM/DD" required>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">ثبت</button>
+                    </div>
+                </div>
+            </form>
+            <table class="table">
+                <thead><tr><th>دانش‌آموز</th><th>نوع</th><th>نمره</th><th>تاریخ (شمسی)</th><th>عملیات</th></tr></thead>
+                <tbody>
+                    {% for disc in disc_scores %}
+                    <tr>
+                        <td>{{ disc.student.first_name }} {{ disc.student.last_name }}</td>
+                        <td>{{ disc.discipline_type }}</td>
+                        <td>{{ disc.score }}</td>
+                        <td>{{ disc.jdate }}</td>  # فیکس: شمسی
+                        <td><a href="{{ url_for('teacher.delete_discipline', disc_id=disc.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('حذف شود؟')">حذف</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endblock %}

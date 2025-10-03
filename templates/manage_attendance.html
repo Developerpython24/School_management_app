@@ -1,0 +1,36 @@
+            {% extends "base.html" %}
+            {% block content %}
+            <h2>حضورغیاب - {{ cls.name }}</h2>
+            <p>غایبان امروز ({{ jtoday }}): {% for s in students if att_dict.get(s.id, {}).get('status', '') == 'absent' %}{{ s.first_name }} {{ s.last_name }}{% if not loop.last %}, {% endif %}{% endfor %}</p>
+            <table class="table">
+                <thead><tr><th>دانش‌آموز</th><th>وضعیت</th><th>تاریخ (شمسی)</th><th>عملیات</th></tr></thead>
+                <tbody>
+                    {% for student in students %}
+                    <tr>
+                        <td>{{ student.first_name }} {{ student.last_name }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('teacher.update_attendance') }}" class="d-inline">
+                                <select name="status" class="form-select d-inline w-auto" style="width:100px;">
+                                    <option value="present" {% if att_dict.get(student.id, {}).get('status', '') == 'present' %}selected{% endif %}>حاضر</option>
+                                    <option value="absent" {% if att_dict.get(student.id, {}).get('status', '') == 'absent' %}selected{% endif %}>غایب</option>
+                                    <option value="late" {% if att_dict.get(student.id, {}).get('status', '') == 'late' %}selected{% endif %}>تأخیر</option>
+                                </select>
+                                <input type="text" name="date" value="{{ jtoday }}" class="form-control d-inline w-auto" style="width:120px;" placeholder="شمسی YYYY/MM/DD">
+                                <input type="hidden" name="student_id" value="{{ student.id }}">
+                                <input type="hidden" name="class_id" value="{{ cls.id }}">
+                                <button type="submit" class="btn btn-sm btn-primary">به‌روزرسانی</button>
+                                {% if att_dict.get(student.id) %}
+                                <a href="{{ url_for('teacher.delete_attendance', att_id=att_dict[student.id]['att_id']) }}" class="btn btn-sm btn-danger">حذف</a>
+                                {% endif %}
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endblock %}
+            {% block scripts %}
+            <script>
+                // تبدیل میلادی به شمسی برای input date (اختیاری، با jdatetime در view بهتره)
+            </script>
+            {% endblock %}

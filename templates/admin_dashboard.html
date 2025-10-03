@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h2 class="mb-4">داشبورد مدیر</h2>
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5>نام مدرسه: {{ admin.school_name }}</h5>
+                <h5>نام مدیر: {{ admin.principal_name }}</h5>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="bi bi-people-fill display-4 text-primary"></i>
+                        <h5>تعداد دانش آموزان</h5>
+                        <h3>{{ students_count }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="bi bi-person-badge-fill display-4 text-primary"></i>
+                        <h5>تعداد معلمان</h5>
+                        <h3>{{ teachers_count }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="bi bi-building display-4 text-primary"></i>
+                        <h5>تعداد کلاس ها</h5>
+                        <h3>{{ classes_count }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="mt-4">
+            <a href="{{ url_for('admin.admin_settings') }}" class="btn btn-primary me-2"><i class="bi bi-gear"></i> تنظیمات</a>
+            <a href="{{ url_for('admin.manage_grades') }}" class="btn btn-primary me-2"><i class="bi bi-layers"></i> مدیریت پایه ها</a>
+            <a href="{{ url_for('admin.manage_classes') }}" class="btn btn-primary me-2"><i class="bi bi-building"></i> مدیریت کلاس ها</a>
+            <a href="{{ url_for('admin.manage_teachers') }}" class="btn btn-primary me-2"><i class="bi bi-person-badge"></i> مدیریت معلمان</a>
+            <a href="{{ url_for('admin.manage_students') }}" class="btn btn-primary me-2"><i class="bi bi-people"></i> مدیریت دانش آموزان</a>
+            <a href="{{ url_for('admin.manage_subjects') }}" class="btn btn-primary me-2"><i class="bi bi-book"></i> مدیریت دروس</a>
+            <a href="{{ url_for('admin.admin_attendance') }}" class="btn btn-primary me-2"><i class="bi bi-check-circle"></i> حضورغیاب</a>
+            <a href="{{ url_for('admin.admin_discipline') }}" class="btn btn-primary me-2"><i class="bi bi-exclamation-triangle"></i> بی‌انضباطی</a>
+            <a href="{{ url_for('admin.reports') }}" class="btn btn-primary"><i class="bi bi-graph-up"></i> گزارش ها</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

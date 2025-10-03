@@ -1,0 +1,30 @@
+            {% extends "base.html" %}
+            {% block content %}
+            <h2>لیست حضورغیاب (تعداد: {{ attendances|length }})</h2>
+            {% if absent_count > 0 %}
+            <div class="alert alert-warning">تعداد غایبان: {{ absent_count }}</div>
+            {% endif %}
+            <table class="table">
+                <thead><tr><th>کلاس</th><th>دانش‌آموز</th><th>وضعیت</th><th>تاریخ (شمسی)</th><th>معلم</th></tr></thead>
+                <tbody>
+                    {% for att in attendances %}
+                    <tr>
+                        <td>{{ att.class_.name if att.class_ else 'نامشخص' }}</td>
+                        <td>{{ att.student.first_name }} {{ att.student.last_name if att.student else 'نامشخص' }}</td>
+                        <td>{{ att.status }}</td>
+                        <td>{{ att.jdate }}</td>  # فیکس: شمسی
+                        <td>{{ att.teacher.first_name }} {{ att.teacher.last_name if att.teacher else 'نامشخص' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <h3>غایبان اخیر</h3>
+            <ul>
+                {% for att in attendances if att.status == 'absent' %}
+                <li>{{ att.student.first_name }} {{ att.student.last_name if att.student else 'نامشخص' }} - {{ att.class_.name if att.class_ else 'نامشخص' }} ({{ att.jdate }})</li>
+                {% endfor %}
+            </ul>
+            {% if attendances|length == 0 %}
+            <p class="text-muted">هیچ حضورغیابی ثبت نشده. از داشبورد معلم ثبت کنید.</p>
+            {% endif %}
+            {% endblock %}

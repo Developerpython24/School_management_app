@@ -1,0 +1,32 @@
+            {% extends "base.html" %}
+            {% block content %}
+            <h2>گزارش {{ report_type }} - {{ period_type }} (از {{ from_date }} تا {{ to_date }})</h2>
+            {% if format_type == 'html' %}
+            <div class="row">
+                <div class="col-md-6">
+                    <canvas id="chart"></canvas>
+                </div>
+                <div class="col-md-6">
+                    <table class="table">
+                        <thead><tr><th>جزئیات</th><th>مقدار</th></tr></thead>
+                        <tbody>
+                            <tr><td>تعداد نمرات</td><td>{{ scores|length }}</td></tr>
+                            <tr><td>میانگین</td><td>{{ (scores | map(attribute='score') | sum / scores|length) | round(2) if scores else 0 }}</td></tr>
+                            <tr><td>بهترین نمره</td><td>{{ (scores | map(attribute='score') | max) | round(2) if scores else 0 }}</td></tr>
+                            <tr><td>پایین‌ترین</td><td>{{ (scores | map(attribute='score') | min) | round(2) if scores else 0 }}</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <script>
+                const ctx = document.getElementById('chart').getContext('2d');
+                const labels = {{ scores | map(attribute='date') | map('strftime', '%Y-%m-%d') | list | tojson }};
+                const data = {{ scores | map(attribute='score') | list | tojson }};
+                new Chart(ctx, {
+                    type: 'line',
+                    data: { labels: labels, datasets: [{ label: 'نمرات', data: data, borderColor: 'blue' }] },
+                    options: { responsive: true, scales: { y: { beginAtZero: true } } }
+                });
+            </script>
+            {% endif %}
+            {% endblock %}
