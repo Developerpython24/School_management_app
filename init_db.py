@@ -179,8 +179,8 @@ def create_templates():
                                     <i class="bi bi-box-arrow-in-right"></i> ورود
                                 </button>
                             </form>
-                            <a href="{{ url_for('general.forgot_password') }}" class="text-center d-block mt-2">
-                                <small>فراموشی رمز عبور?</small>
+                            <a href="{{ url_for('general.forgot_password') }}" class="text-center d-block mt-2 text-primary">
+                                <small>فراموشی رمز عبور؟</small>
                             </a>
                         </div>
                     </div>
