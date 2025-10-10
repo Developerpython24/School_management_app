@@ -508,15 +508,16 @@ def reports():
 @admin_bp.route('/reports/generate', methods=['POST'])
 @login_required(role='admin')
 def generate_report():
-    report_type = request.form.get('report_type') # individual/class
+    report_type = request.form.get('report_type')  # individual/class
     student_id = request.form.get('student_id') or None
     class_id = request.form.get('class_id') or None
-    from_date_str = request.form.get('from_date') or None # شمسی از
-    to_date_str = request.form.get('to_date') or None # شمسی تا
-    period_type = request.form.get('period_type', 'daily') # daily/monthly/quarterly
-    report_option = request.form.get('report_option', 'average') # average/total/most_frequent
+    from_date_str = request.form.get('from_date') or None  # شمسی از
+    to_date_str = request.form.get('to_date') or None  # شمسی تا
+    period_type = request.form.get('period_type', 'daily')  # daily/monthly/quarterly
+    report_option = request.form.get('report_option', 'average')  # average/total/most_frequent
     include_skills = request.form.get('include_skills') == 'on'
-    format_type = request.form.get('format', 'html') # html/excel
+    format_type = request.form.get('format', 'html')  # html/excel
+
     # تبدیل شمسی به میلادی
     from_date = None
     to_date = None
@@ -534,6 +535,7 @@ def generate_report():
         except:
             flash('تاریخ تا نامعتبر', 'error')
             return redirect(url_for('admin.reports'))
+
     try:
         if report_type == 'individual' and student_id:
             student = Student.query.options(joinedload(Student.scores)).get(student_id)
@@ -543,26 +545,31 @@ def generate_report():
             if to_date:
                 base_query = base_query.filter(Score.date <= to_date)
             scores = base_query.all()
-            # فیکس: فیلتر دوره (مثال: ماه جاری برای monthly، فصل جاری برای quarterly)
+
+            # فیلتر دوره
             if period_type == 'monthly':
                 current_month = jdatetime.date.today().month
                 scores = [s for s in scores if jdatetime.date.fromgregorian(s.date).month == current_month]
             elif period_type == 'quarterly':
                 current_quarter = (jdatetime.date.today().month - 1) // 3 + 1
                 scores = [s for s in scores if ((jdatetime.date.fromgregorian(s.date).month - 1) // 3 + 1) == current_quarter]
+
             # گزینه گزارش
             if report_option == 'total':
                 report_data = sum(s.score for s in scores) if scores else 0
             elif report_option == 'most_frequent':
                 counter = Counter(s.score for s in scores)
-                report_data = counter.most_common(1)[0][0] if counter else 0 # فقط score پرتکرار
-            else: # average
+                report_data = counter.most_common(1)[0][0] if counter else 0
+            else:  # average
                 report_data = sum(s.score for s in scores) / len(scores) if scores else 0
+
             skills = SkillScore.query.filter_by(student_id=student_id).all() if include_skills else []
+
             if format_type == 'excel':
                 return generate_excel_report(student, scores, skills, f"{from_date_str or ''} to {to_date_str or ''}")
             else:
                 return render_template('chart_report.html', student=student, scores=scores, report_type=report_type, report_data=report_data, period_type=period_type)
+
         elif report_type == 'class' and class_id:
             class_obj = Class.query.options(joinedload(Class.students).joinedload(Student.scores)).get(class_id)
             students = class_obj.students if class_obj.students else []
@@ -571,10 +578,40 @@ def generate_report():
                 base_query = base_query.filter(Score.date >= from_date)
             if to_date:
                 base_query = base_query.filter(Score.date <= to_date)
-            all_scores = base_query.all() # فیکس: استفاده از all_scores برای فیلتر
-            # گزینه گزارش (بر اساس all_scores)
+            all_scores = base_query.all()
+
+            # گزینه گزارش
             if report_option == 'average':
                 avg_data = {}
                 for s in students:
-                    s_scores = [sc for sc in all_scores if sc.student_id == s.id] # فیلتر از all_scores
-                    avg_data[s.id]
+                    s_scores = [sc for sc in all_scores if sc.student_id == s.id]
+                    avg_data[s.id] = sum(sc.score for sc in s_scores) / len(s_scores) if s_scores else 0
+                report_data = [avg_data[s.id] for s in students]  # list برای چارت
+            elif report_option == 'total':
+                report_data = [sum(sc.score for sc in all_scores if sc.student_id == s.id) for s in students]
+            elif report_option == 'most_frequent':
+                report_data = []
+                for s in students:
+                    s_scores = [sc.score for sc in all_scores if sc.student_id == s.id]
+                    counter = Counter(s_scores)
+                    most_freq = counter.most_common(1)[0][0] if counter else 0
+                    report_data.append(most_freq)
+
+            # فیلتر دوره
+            if period_type == 'monthly':
+                current_month = jdatetime.date.today().month
+                all_scores = [sc for sc in all_scores if jdatetime.date.fromgregorian(sc.date).month == current_month]
+            elif period_type == 'quarterly':
+                current_quarter = (jdatetime.date.today().month - 1) // 3 + 1
+                all_scores = [sc for sc in all_scores if ((jdatetime.date.fromgregorian(sc.date).month - 1) // 3 + 1) == current_quarter]
+
+            if format_type == 'excel':
+                return generate_class_excel_report(class_obj, students, f"{from_date_str or ''} to {to_date_str or ''}", include_skills)
+            else:
+                return render_template('class_chart_report.html', class_obj=class_obj, students=students, report_type=report_type, report_data=report_data, period_type=period_type)
+
+        flash('لطفا همه فیلدها را پر کنید', 'error')
+        return redirect(url_for('admin.reports'))
+    except Exception as e:
+        flash(f'خطا در گزارش: {str(e)}', 'error')
+        return redirect(url_for('admin.reports'))
