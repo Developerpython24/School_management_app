@@ -38,7 +38,18 @@ if os.environ.get('ENV') == 'dev':
 
 
 if __name__ == '__main__':
+    db.init_app(app)
+    with app.app_context():
+        try:
+            db.create_all()  # فیکس: همیشه جدول‌ها رو بساز (production OK)
+            if os.environ.get('ENV') == 'dev':
+                init_db()  # داده‌های نمونه فقط dev
+                create_templates()
+            logger.info("App initialized successfully. Server starting on http://127.0.0.1:5000")
+        except Exception as e:
+            logger.error(f"Init error: {e}")
+            raise
     port = int(os.environ.get('PORT', 5000))
-    host = '0.0.0.0'  # فیکس: bind to all interfaces for Render
+    host = '0.0.0.0'
     debug = os.environ.get('ENV') == 'dev'
     app.run(debug=debug, host=host, port=port)
