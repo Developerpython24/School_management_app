@@ -12,7 +12,6 @@ logger = getLogger(__name__)
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-prod')
-# فیکس: DB URI از env (Render DATABASE_URL set می‌کنه)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///school_management.db').replace("postgres://", "postgresql://")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)
@@ -30,26 +29,16 @@ app.register_blueprint(teacher_bp, url_prefix='/teacher')
 
 db.init_app(app)
 
-# فیکس: init_db فقط dev
-if os.environ.get('ENV') == 'dev':
-    with app.app_context():
-        init_db()
+# فیکس: create_all در startup (قبل __main__, برای production)
+with app.app_context():
+    db.create_all()  # جدول‌ها رو بساز (idempotent، همیشه OK)
+    if os.environ.get('ENV') == 'dev':
+        init_db()  # داده‌های نمونه فقط dev
         create_templates()
 
-
 if __name__ == '__main__':
-    db.init_app(app)
-    with app.app_context():
-        try:
-            db.create_all()  # فیکس: جدول‌ها رو همیشه بساز (idempotent)
-            if os.environ.get('ENV') == 'dev':
-                init_db()  # داده‌های نمونه فقط dev
-                create_templates()
-            logger.info("App initialized successfully. Server starting on http://127.0.0.1:5000")
-        except Exception as e:
-            logger.error(f"Init error: {e}")
-            raise
     port = int(os.environ.get('PORT', 5000))
     host = '0.0.0.0'
     debug = os.environ.get('ENV') == 'dev'
+    logger.info("App initialized successfully. Server starting on http://127.0.0.1:5000")
     app.run(debug=debug, host=host, port=port)
