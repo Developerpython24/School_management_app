@@ -1,35 +1,30 @@
 from io import BytesIO
-import pandas as pd
 import jdatetime
-from flask import send_file  # ← اضافه کن (برای دانلود اکسل)
+from flask import send_file
+from openpyxl import Workbook  # فیکس: openpyxl مستقیم بدون pandas
 from models import Score, SkillScore, Student, Class
 
 def generate_excel_report(student, scores, skills, period):
     output = BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        if scores:
-            scores_data = []
-            for score in scores:
-                jdate = jdatetime.date.fromgregorian(date=score.date)
-                scores_data.append({
-                    'تاریخ': jdate.strftime('%Y/%m/%d'),
-                    'روز هفته': score.weekday,
-                    'درس': score.subject_ref.name,
-                    'نمره': score.score
-                })
-            df_scores = pd.DataFrame(scores_data)
-            df_scores.to_excel(writer, sheet_name='نمرات درسی', index=False)
-        if skills:
-            skills_data = []
-            for skill in skills:
-                jdate = jdatetime.date.fromgregorian(date=skill.date)
-                skills_data.append({
-                    'تاریخ': jdate.strftime('%Y/%m/%d'),
-                    'مهارت': skill.skill_name,
-                    'نمره': skill.score
-                })
-            df_skills = pd.DataFrame(skills_data)
-            df_skills.to_excel(writer, sheet_name='نمرات مهارتی', index=False)
+    wb = Workbook()
+    
+    # Sheet نمرات درسی
+    ws_scores = wb.active
+    ws_scores.title = 'نمرات درسی'
+    ws_scores.append(['تاریخ', 'روز هفته', 'درس', 'نمره'])  # header
+    for score in scores:
+        jdate = jdatetime.date.fromgregorian(date=score.date).strftime('%Y/%m/%d')
+        ws_scores.append([jdate, score.weekday, score.subject_ref.name, score.score])
+    
+    # Sheet نمرات مهارتی (اگر وجود داره)
+    if skills:
+        ws_skills = wb.create_sheet('نمرات مهارتی')
+        ws_skills.append(['تاریخ', 'مهارت', 'نمره'])
+        for skill in skills:
+            jdate = jdatetime.date.fromgregorian(date=skill.date).strftime('%Y/%m/%d')
+            ws_skills.append([jdate, skill.skill_name, skill.score])
+    
+    wb.save(output)
     output.seek(0)
     filename = f'report_{student.first_name}_{student.last_name}_{period}.xlsx'
     return send_file(
@@ -41,24 +36,23 @@ def generate_excel_report(student, scores, skills, period):
 
 def generate_class_excel_report(class_obj, students, period, include_skills):
     output = BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        class_data = []
-        for student in students:
-            scores = Score.query.filter_by(student_id=student.id).all()
-            avg_score = sum(s.score for s in scores) / len(scores) if scores else 0
-            row = {
-                'کد دانش آموزی': student.student_id,
-                'نام': student.first_name,
-                'نام خانوادگی': student.last_name,
-                'میانگین نمرات': round(avg_score, 2)
-            }
-            if include_skills:
-                skills = SkillScore.query.filter_by(student_id=student.id).all()
-                avg_skill = sum(s.score for s in skills) / len(skills) if skills else 0
-                row['میانگین مهارت'] = round(avg_skill, 2)
-            class_data.append(row)
-        df_class = pd.DataFrame(class_data)
-        df_class.to_excel(writer, sheet_name=f'کلاس {class_obj.name}', index=False)
+    wb = Workbook()
+    ws = wb.active
+    ws.title = f'کلاس {class_obj.name}'
+    ws.append(['کد دانش آموزی', 'نام', 'نام خانوادگی', 'میانگین نمرات'])  # header
+    
+    for student in students:
+        scores = Score.query.filter_by(student_id=student.id).all()
+        avg_score = sum(s.score for s in scores) / len(scores) if scores else 0
+        row = [student.student_id, student.first_name, student.last_name, round(avg_score, 2)]
+        ws.append(row)
+        
+        if include_skills:
+            skills = SkillScore.query.filter_by(student_id=student.id).all()
+            avg_skill = sum(s.score for s in skills) / len(skills) if skills else 0
+            ws.append(['', '', '', f'میانگین مهارت: {round(avg_skill, 2)}'])  # row اضافی برای مهارت
+    
+    wb.save(output)
     output.seek(0)
     filename = f'class_report_{class_obj.name}_{period}.xlsx'
     return send_file(
