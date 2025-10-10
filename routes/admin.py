@@ -1,17 +1,14 @@
-
-
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, session  # فیکس: session اضافه
-from models import db, Admin, Teacher, Grade, Class, Student, Subject, Attendance, DisciplineScore, Score, SkillScore, TeacherClass  # فیکس: TeacherClass اضافه
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, session  # session اضافه
+from models import db, Admin, Teacher, Grade, Class, Student, Subject, Attendance, DisciplineScore, Score, SkillScore, TeacherClass  # TeacherClass اضافه
 from routes.general import login_required
 from utils import generate_excel_report, generate_class_excel_report
 from werkzeug.security import generate_password_hash
 from datetime import date
 from sqlalchemy.exc import IntegrityError
-import pandas as pd
-from sqlalchemy.orm import joinedload  # ← اضافه کن در imports
+from sqlalchemy.orm import joinedload
 from sqlalchemy import func, desc
 import jdatetime  # برای شمسی
-from collections import Counter  # فیکس: import برای most_frequent
+from collections import Counter  # برای most_frequent
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -38,11 +35,11 @@ def admin_settings():
         confirm_password = request.form.get('confirm_password')
         school_name = request.form.get('school_name')
         principal_name = request.form.get('principal_name')
-        
+       
         # بروزرسانی مدرسه/مدیر
         admin.school_name = school_name
         admin.principal_name = principal_name
-        
+       
         # تغییر username
         if new_username and new_username != admin.username:
             if Admin.query.filter_by(username=new_username).first():
@@ -50,7 +47,7 @@ def admin_settings():
                 return render_template('admin_settings.html', admin=admin)
             admin.username = new_username
             session['username'] = new_username  # بروزرسانی session
-        
+       
         # تغییر password
         if new_password:
             if len(new_password) < 6:
@@ -61,7 +58,7 @@ def admin_settings():
                 return render_template('admin_settings.html', admin=admin)
             admin.password_hash = generate_password_hash(new_password)
             flash('رمز عبور تغییر یافت', 'success')
-        
+       
         try:
             db.session.commit()
             flash('تنظیمات با موفقیت ذخیره شد', 'success')
@@ -346,7 +343,7 @@ def add_student():
             flash(f'خطا: {str(e)}', 'error')
     return redirect(url_for('admin.manage_students'))
 
-@admin_bp.route('/students/edit/<int:student_id>', methods=['GET', 'POST'],endpoint='admin_edit_student_view')
+@admin_bp.route('/students/edit/<int:student_id>', methods=['GET', 'POST'])
 @login_required(role='admin')
 def edit_student(student_id):
     student = Student.query.get_or_404(student_id)
@@ -377,13 +374,17 @@ def import_students():
         flash('فایل CSV انتخاب نشده', 'error')
         return redirect(url_for('admin.manage_students'))
     try:
-        df = pd.read_csv(file, encoding='utf-8')
+        # فیکس: CSV با csv module (بدون pandas)
+        import csv
+        from io import StringIO
+        stream = StringIO(file.stream.read().decode('utf-8'))
+        csv_reader = csv.DictReader(stream)
         required_cols = ['student_id', 'first_name', 'last_name', 'grade_id']
-        if not all(col in df.columns for col in required_cols):
-            flash('ستون‌های مورد نیاز: student_id, first_name, last_name, grade_id', 'error')
+        if not all(col in csv_reader.fieldnames for col in required_cols):
+            flash('ستون‌های مورد نیاز: student_id,first_name,last_name,grade_id (parent_phone اختیاری)', 'error')
             return redirect(url_for('admin.manage_students'))
         success_count = 0
-        for _, row in df.iterrows():
+        for row in csv_reader:
             if Student.query.filter_by(student_id=row['student_id']).first():
                 continue
             student = Student(
@@ -391,7 +392,8 @@ def import_students():
                 first_name=str(row['first_name']),
                 last_name=str(row['last_name']),
                 grade_id=int(row['grade_id']),
-                class_id=None
+                class_id=None,
+                parent_phone=str(row.get('parent_phone', '')) or None
             )
             db.session.add(student)
             success_count += 1
@@ -401,25 +403,6 @@ def import_students():
         db.session.rollback()
         flash(f'خطا در import: {str(e)}', 'error')
     return redirect(url_for('admin.manage_students'))
-
-@admin_bp.route('/students/edit/<int:student_id>', methods=['GET', 'POST'])
-@login_required(role='admin')
-def edit_student(student_id):
-    student = Student.query.get_or_404(student_id)
-    grades = Grade.query.all()
-    if request.method == 'POST':
-        try:
-            student.student_id = request.form.get('student_id')
-            student.first_name = request.form.get('first_name')
-            student.last_name = request.form.get('last_name')
-            student.grade_id = int(request.form.get('grade_id'))
-            db.session.commit()
-            flash('دانش‌آموز ویرایش شد', 'success')
-            return redirect(url_for('admin.manage_students'))
-        except Exception as e:
-            db.session.rollback()
-            flash(f'خطا: {str(e)}', 'error')
-    return render_template('edit_student.html', student=student, grades=grades)
 
 @admin_bp.route('/students/delete/<int:student_id>')
 @login_required(role='admin')
@@ -498,12 +481,10 @@ def delete_subject(subject_id):
 def admin_attendance():
     attendances = Attendance.query.options(joinedload(Attendance.student), joinedload(Attendance.class_), joinedload(Attendance.teacher)).all()
     absent_count = len([att for att in attendances if att.status == 'absent'])
-    
     # تبدیل شمسی
     for att in attendances:
         jdate = jdatetime.date.fromgregorian(date=att.date).strftime('%Y/%m/%d')
         att.jdate = jdate
-    
     return render_template('admin_attendance.html', attendances=attendances, absent_count=absent_count)
 
 @admin_bp.route('/discipline')
@@ -511,12 +492,10 @@ def admin_attendance():
 def admin_discipline():
     disciplines = DisciplineScore.query.options(joinedload(DisciplineScore.student), joinedload(DisciplineScore.teacher)).all()
     negative_count = len([disc for disc in disciplines if disc.score < 0])
-    
     # تبدیل شمسی
     for disc in disciplines:
         jdate = jdatetime.date.fromgregorian(date=disc.date).strftime('%Y/%m/%d')
         disc.jdate = jdate
-    
     return render_template('admin_discipline.html', disciplines=disciplines, negative_count=negative_count)
 
 @admin_bp.route('/reports')
@@ -526,20 +505,18 @@ def reports():
     classes = Class.query.all()
     return render_template('reports.html', students=students, classes=classes)
 
-
 @admin_bp.route('/reports/generate', methods=['POST'])
 @login_required(role='admin')
 def generate_report():
-    report_type = request.form.get('report_type')  # individual/class
+    report_type = request.form.get('report_type') # individual/class
     student_id = request.form.get('student_id') or None
     class_id = request.form.get('class_id') or None
-    from_date_str = request.form.get('from_date') or None  # شمسی از
-    to_date_str = request.form.get('to_date') or None  # شمسی تا
-    period_type = request.form.get('period_type', 'daily')  # daily/monthly/quarterly
-    report_option = request.form.get('report_option', 'average')  # average/total/most_frequent
+    from_date_str = request.form.get('from_date') or None # شمسی از
+    to_date_str = request.form.get('to_date') or None # شمسی تا
+    period_type = request.form.get('period_type', 'daily') # daily/monthly/quarterly
+    report_option = request.form.get('report_option', 'average') # average/total/most_frequent
     include_skills = request.form.get('include_skills') == 'on'
-    format_type = request.form.get('format', 'html')  # html/excel
-
+    format_type = request.form.get('format', 'html') # html/excel
     # تبدیل شمسی به میلادی
     from_date = None
     to_date = None
@@ -557,7 +534,6 @@ def generate_report():
         except:
             flash('تاریخ تا نامعتبر', 'error')
             return redirect(url_for('admin.reports'))
-
     try:
         if report_type == 'individual' and student_id:
             student = Student.query.options(joinedload(Student.scores)).get(student_id)
@@ -567,7 +543,6 @@ def generate_report():
             if to_date:
                 base_query = base_query.filter(Score.date <= to_date)
             scores = base_query.all()
-
             # فیکس: فیلتر دوره (مثال: ماه جاری برای monthly، فصل جاری برای quarterly)
             if period_type == 'monthly':
                 current_month = jdatetime.date.today().month
@@ -575,23 +550,19 @@ def generate_report():
             elif period_type == 'quarterly':
                 current_quarter = (jdatetime.date.today().month - 1) // 3 + 1
                 scores = [s for s in scores if ((jdatetime.date.fromgregorian(s.date).month - 1) // 3 + 1) == current_quarter]
-
             # گزینه گزارش
             if report_option == 'total':
                 report_data = sum(s.score for s in scores) if scores else 0
             elif report_option == 'most_frequent':
                 counter = Counter(s.score for s in scores)
-                report_data = counter.most_common(1)[0][0] if counter else 0  # فقط score پرتکرار
-            else:  # average
+                report_data = counter.most_common(1)[0][0] if counter else 0 # فقط score پرتکرار
+            else: # average
                 report_data = sum(s.score for s in scores) / len(scores) if scores else 0
-
             skills = SkillScore.query.filter_by(student_id=student_id).all() if include_skills else []
-
             if format_type == 'excel':
                 return generate_excel_report(student, scores, skills, f"{from_date_str or ''} to {to_date_str or ''}")
             else:
                 return render_template('chart_report.html', student=student, scores=scores, report_type=report_type, report_data=report_data, period_type=period_type)
-
         elif report_type == 'class' and class_id:
             class_obj = Class.query.options(joinedload(Class.students).joinedload(Student.scores)).get(class_id)
             students = class_obj.students if class_obj.students else []
@@ -600,40 +571,10 @@ def generate_report():
                 base_query = base_query.filter(Score.date >= from_date)
             if to_date:
                 base_query = base_query.filter(Score.date <= to_date)
-            all_scores = base_query.all()  # فیکس: استفاده از all_scores برای فیلتر
-
+            all_scores = base_query.all() # فیکس: استفاده از all_scores برای فیلتر
             # گزینه گزارش (بر اساس all_scores)
             if report_option == 'average':
                 avg_data = {}
                 for s in students:
-                    s_scores = [sc for sc in all_scores if sc.student_id == s.id]  # فیلتر از all_scores
-                    avg_data[s.id] = sum(sc.score for sc in s_scores) / len(s_scores) if s_scores else 0
-                report_data = [avg_data[s.id] for s in students]  # list برای چارت
-            elif report_option == 'total':
-                report_data = [sum(sc.score for sc in all_scores if sc.student_id == s.id) for s in students]
-            elif report_option == 'most_frequent':
-                report_data = []
-                for s in students:
-                    s_scores = [sc.score for sc in all_scores if sc.student_id == s.id]
-                    counter = Counter(s_scores)
-                    most_freq = counter.most_common(1)[0][0] if counter else 0
-                    report_data.append(most_freq)
-
-            # فیلتر دوره (مشابه individual، روی all_scores)
-            if period_type == 'monthly':
-                current_month = jdatetime.date.today().month
-                all_scores = [sc for sc in all_scores if jdatetime.date.fromgregorian(sc.date).month == current_month]
-            elif period_type == 'quarterly':
-                current_quarter = (jdatetime.date.today().month - 1) // 3 + 1
-                all_scores = [sc for sc in all_scores if ((jdatetime.date.fromgregorian(sc.date).month - 1) // 3 + 1) == current_quarter]
-
-            if format_type == 'excel':
-                return generate_class_excel_report(class_obj, students, f"{from_date_str or ''} to {to_date_str or ''}", include_skills)
-            else:
-                return render_template('class_chart_report.html', class_obj=class_obj, students=students, report_type=report_type, report_data=report_data, period_type=period_type)
-
-        flash('لطفا همه فیلدها را پر کنید', 'error')
-        return redirect(url_for('admin.reports'))
-    except Exception as e:
-        flash(f'خطا در گزارش: {str(e)}', 'error')
-        return redirect(url_for('admin.reports'))
+                    s_scores = [sc for sc in all_scores if sc.student_id == s.id] # فیلتر از all_scores
+                    avg_data[s.id]
