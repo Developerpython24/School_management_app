@@ -3,7 +3,7 @@ from datetime import timedelta
 import os
 import sys
 from logging import basicConfig, getLogger
-
+from flask_mail import Mail  # فیکس: import Flask-Mail
 # ریشه پروژه
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -16,6 +16,16 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:/
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)
 
+
+# فیکس: Flask-Mail config
+app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
+app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'true').lower() == 'true'
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
+mail = Mail(app)
+
+# ... بقیه کد (imports, blueprints, db.init_app, etc.)
 # Imports
 from models import db
 from routes.general import general_bp
