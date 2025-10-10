@@ -2,9 +2,7 @@ Flask==3.0.3
 Flask-SQLAlchemy==3.1.1
 Werkzeug==3.0.3
 gunicorn==21.2.0
-pandas==2.0.3
-numpy==1.21.6  # فیکس: نسخه stable بدون distutils bug
-openpyxl==3.1.2
+openpyxl==3.1.2  # فقط این برای Excel
 jdatetime==4.1.0
 kavenegar==1.1.2
 psycopg2-binary==2.9.6
