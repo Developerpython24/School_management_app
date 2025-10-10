@@ -41,7 +41,7 @@ if __name__ == '__main__':
     db.init_app(app)
     with app.app_context():
         try:
-            db.create_all()  # فیکس: همیشه جدول‌ها رو بساز (production OK)
+            db.create_all()  # فیکس: جدول‌ها رو همیشه بساز (production OK، idempotent)
             if os.environ.get('ENV') == 'dev':
                 init_db()  # داده‌های نمونه فقط dev
                 create_templates()
