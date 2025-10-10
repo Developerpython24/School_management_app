@@ -2,8 +2,9 @@ Flask==3.0.3
 Flask-SQLAlchemy==3.1.1
 Werkzeug==3.0.3
 gunicorn==21.2.0
-openpyxl==3.1.2  # فقط این برای Excel
+openpyxl==3.1.2
 jdatetime==4.1.0
 kavenegar==1.1.2
 psycopg2-binary==2.9.6
 SQLAlchemy==2.0.23
+Flask-Mail==0.9.1  # فیکس: برای forgot password
