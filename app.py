@@ -36,7 +36,9 @@ if os.environ.get('ENV') == 'dev':
         init_db()
         create_templates()
 
+
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))  # Render PORT set می‌کنه
+    port = int(os.environ.get('PORT', 5000))
+    host = '0.0.0.0'  # فیکس: bind to all interfaces for Render
     debug = os.environ.get('ENV') == 'dev'
-    app.run(debug=debug, host='0.0.0.0', port=port)
+    app.run(debug=debug, host=host, port=port)
