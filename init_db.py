@@ -151,7 +151,7 @@ def create_templates():
                 </div>
             </div>
             {% endblock %}'''),
-        'login.html': textwrap.dedent('''\
+       'login.html': '''\
             {% extends "base.html" %}
             {% block content %}
             <div class="row justify-content-center mt-5">
@@ -175,15 +175,85 @@ def create_templates():
                                     <label class="form-label">رمز عبور</label>
                                     <input type="password" name="password" class="form-control" required>
                                 </div>
-                                <button type="submit" class="btn btn-primary w-100">
+                                <button type="submit" class="btn btn-primary w-100 mb-2">
                                     <i class="bi bi-box-arrow-in-right"></i> ورود
                                 </button>
                             </form>
+                            <a href="{{ url_for('general.forgot_password') }}" class="text-center d-block mt-2">
+                                <small>فراموشی رمز عبور?</small>
+                            </a>
                         </div>
                     </div>
                 </div>
             </div>
-            {% endblock %}'''),
+            {% endblock %}''',
+
+        'forgot_password.html': '''\
+            {% extends "base.html" %}
+            {% block content %}
+            <div class="row justify-content-center mt-5">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body p-4">
+                            <h3 class="text-center mb-4">فراموشی رمز عبور</h3>
+                            <form method="POST">
+                                <div class="mb-3">
+                                    <label class="form-label">نوع کاربری</label>
+                                    <select name="role" class="form-select" required>
+                                        <option value="admin">مدیر سیستم</option>
+                                        <option value="teacher">معلم</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">نام کاربری</label>
+                                    <input type="text" name="username" class="form-control" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-envelope"></i> ارسال لینک
+                                </button>
+                            </form>
+                            <a href="{{ url_for('general.login') }}" class="text-center d-block mt-2">
+                                <small>بازگشت به ورود</small>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endblock %}''',
+        
+        'reset_password.html': '''\
+            {% extends "base.html" %}
+            {% block content %}
+            <div class="row justify-content-center mt-5">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body p-4">
+                            <h3 class="text-center mb-4">تغییر رمز عبور</h3>
+                            <form method="POST">
+                                <div class="mb-3">
+                                    <label class="form-label">نام کاربری</label>
+                                    <input type="text" name="username" value="{{ username }}" class="form-control" readonly>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">رمز عبور جدید</label>
+                                    <input type="password" name="new_password" class="form-control" minlength="6" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">تأیید رمز عبور</label>
+                                    <input type="password" name="confirm_password" class="form-control" minlength="6" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-lock"></i> تغییر رمز
+                                </button>
+                            </form>
+                            <a href="{{ url_for('general.login') }}" class="text-center d-block mt-2">
+                                <small>بازگشت به ورود</small>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endblock %}''',
         'admin_dashboard.html': textwrap.dedent('''\
             {% extends "base.html" %}
             {% block content %}
