@@ -479,14 +479,19 @@ def delete_subject(subject_id):
 @admin_bp.route('/attendance')
 @login_required(role='admin')
 def admin_attendance():
-    attendances = Attendance.query.options(joinedload(Attendance.student), joinedload(Attendance.class_), joinedload(Attendance.teacher)).all()
+    # فیکس: فیلتر فقط غایب یا تأخیر
+    attendances = Attendance.query.options(joinedload(Attendance.student), joinedload(Attendance.class_), joinedload(Attendance.teacher)).filter(
+        Attendance.status.in_(['absent', 'late'])
+    ).all()
     absent_count = len([att for att in attendances if att.status == 'absent'])
+    late_count = len(attendances) - absent_count  # تعداد تأخیر = کل - غایب
+    
     # تبدیل شمسی
     for att in attendances:
         jdate = jdatetime.date.fromgregorian(date=att.date).strftime('%Y/%m/%d')
         att.jdate = jdate
-    return render_template('admin_attendance.html', attendances=attendances, absent_count=absent_count)
-
+    
+    return render_template('admin_attendance.html', attendances=attendances, absent_count=absent_count, late_count=late_count)
 @admin_bp.route('/discipline')
 @login_required(role='admin')
 def admin_discipline():
