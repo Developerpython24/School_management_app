@@ -5,6 +5,8 @@ from datetime import datetime, date
 from sqlalchemy.exc import IntegrityError
 import jdatetime
 from kavenegar import KavenegarAPI  # برای SMS
+from flask_paginate import Pagination, get_page_args
+
 
 api_key = '5A56496148425477335667304857624E582F4F3453597739435656354B6F516E627434327A327A56336F633D'  # جایگزین با API key خودت
 api = KavenegarAPI(api_key)
@@ -23,6 +25,7 @@ def teacher_dashboard():
         subjects_by_class[cls.name] = subjects
     return render_template('teacher_dashboard.html', teacher=teacher, classes=classes, subjects_by_class=subjects_by_class)
 
+
 @teacher_bp.route('/scores/<int:subject_id>')
 @login_required(role='teacher')
 def manage_scores(subject_id):
@@ -32,14 +35,37 @@ def manage_scores(subject_id):
         return redirect(url_for('teacher.teacher_dashboard'))
     
     students = Student.query.filter_by(class_id=subject.class_id).all()
-    scores = Score.query.filter_by(subject_id=subject_id).all()
+    from_date_str = request.args.get('from_date')
+    to_date_str = request.args.get('to_date')
+    from_date = None
+    to_date = None
+    if from_date_str:
+        j_from = jdatetime.datetime.strptime(from_date_str, '%Y/%m/%d').togregorian().date()
+        from_date = j_from
+    if to_date_str:
+        j_to = jdatetime.datetime.strptime(to_date_str, '%Y/%m/%d').togregorian().date()
+        to_date = j_to
     
-    # فیکس: تبدیل تاریخ به شمسی برای هر score
+    query = Score.query.filter_by(subject_id=subject_id).options(joinedload(Score.student))
+    if from_date:
+        query = query.filter(Score.date >= from_date)
+    if to_date:
+        query = query.filter(Score.date <= to_date)
+    
+    # pagination
+    page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
+    per_page = 20
+    total = query.count()
+    scores = query.offset(offset).limit(per_page).all()
+    
+    # شمسی
     for sc in scores:
         jdate = jdatetime.date.fromgregorian(date=sc.date).strftime('%Y/%m/%d')
-        sc.jdate = jdate  # اضافه به object
+        sc.jdate = jdate
     
-    return render_template('manage_scores.html', subject=subject, students=students, scores=scores)
+    pagination = Pagination(page=page, per_page=per_page, total=total, css_framework='bootstrap5')
+    
+    return render_template('manage_scores.html', subject=subject, students=students, scores=scores, pagination=pagination, from_date_str=from_date_str, to_date_str=to_date_str)
 @teacher_bp.route('/scores/add', methods=['POST'])
 @login_required(role='teacher')
 def add_score():
@@ -132,19 +158,41 @@ def delete_score(score_id):
 @login_required(role='teacher')
 def manage_skills():
     teacher = Teacher.query.get(session['user_id'])
-    class_ids = [tc.class_id for tc in teacher.teacher_classes]  # فیکس: فقط کلاس‌های معلم
-    students = Student.query.filter(Student.class_id.in_(class_ids)).all()  # فیلتر به کلاس‌های معلم
-    skill_scores = SkillScore.query.filter_by(teacher_id=teacher.id).all()
-    skills = ['مهارت شنوایی', 'مهارت سخنرانی', 'مهارت نوشتاری', 'مهارت حل مسئله', 'مهارت تفکر نقاد', 'مهارت هنری']
+    class_ids = [tc.class_id for tc in teacher.teacher_classes]
+    students = Student.query.filter(Student.class_id.in_(class_ids)).all()
     
-    # تبدیل شمسی
+    from_date_str = request.args.get('from_date')
+    to_date_str = request.args.get('to_date')
+    from_date = None
+    to_date = None
+    if from_date_str:
+        j_from = jdatetime.datetime.strptime(from_date_str, '%Y/%m/%d').togregorian().date()
+        from_date = j_from
+    if to_date_str:
+        j_to = jdatetime.datetime.strptime(to_date_str, '%Y/%m/%d').togregorian().date()
+        to_date = j_to
+    
+    query = SkillScore.query.filter_by(teacher_id=teacher.id)
+    if from_date:
+        query = query.filter(SkillScore.date >= from_date)
+    if to_date:
+        query = query.filter(SkillScore.date <= to_date)
+    
+    # pagination
+    page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
+    per_page = 20
+    total = query.count()
+    skill_scores = query.offset(offset).limit(per_page).all()
+    
+    # شمسی
     for sk in skill_scores:
         jdate = jdatetime.date.fromgregorian(date=sk.date).strftime('%Y/%m/%d')
         sk.jdate = jdate
     
-    return render_template('manage_skills.html', students=students, skills=skills, skill_scores=skill_scores)
+    skills = ['مهارت شنوایی', 'مهارت سخنرانی', 'مهارت نوشتاری', 'مهارت حل مسئله', 'مهارت تفکر نقاد', 'مهارت هنری']
+    pagination = Pagination(page=page, per_page=per_page, total=total, css_framework='bootstrap5')
     
-    return render_template('manage_skills.html', students=students, skills=skills, skill_scores=skill_scores_with_date)
+    return render_template('manage_skills.html', students=students, skills=skills, skill_scores=skill_scores, pagination=pagination, from_date_str=from_date_str, to_date_str=to_date_str)
 @teacher_bp.route('/skills/add', methods=['POST'])
 @login_required(role='teacher')
 def add_skill_score():
@@ -263,22 +311,8 @@ def update_attendance():
             flash(f'خطا: {str(e)}', 'error')
     return redirect(url_for('teacher.manage_attendance', class_id=class_id))
 
-@teacher_bp.route('/attendance/delete/<int:att_id>')
-@login_required(role='teacher')
-def delete_attendance(att_id):
-    att = Attendance.query.get_or_404(att_id)
-    if att.teacher_id != session['user_id']:
-        flash('دسترسی ندارید', 'error')
-        return redirect(url_for('teacher.teacher_dashboard'))
-    class_id = att.class_id
-    try:
-        db.session.delete(att)
-        db.session.commit()
-        flash('حضورغیاب حذف شد', 'success')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'خطا: {str(e)}', 'error')
-    return redirect(url_for('teacher.manage_attendance', class_id=class_id))
+
+from flask_paginate import Pagination, get_page_args
 
 @teacher_bp.route('/discipline/<int:class_id>')
 @login_required(role='teacher')
@@ -288,19 +322,41 @@ def manage_discipline(class_id):
     if not any(tc.class_id == class_id for tc in teacher.teacher_classes):
         flash('شما دسترسی به این کلاس ندارید', 'error')
         return redirect(url_for('teacher.teacher_dashboard'))
-    students = Student.query.filter_by(class_id=class_id).all()
-    disciplines = ['تأخیر', 'عدم توجه', 'نقض مقررات', 'غیبت غیرموجه','صحبت  بی دلیل و بی موقع']
-    disc_scores = DisciplineScore.query.filter(DisciplineScore.student_id.in_([s.id for s in students])).all()
     
-    # فیکس: تبدیل شمسی
-    disc_scores_with_date = []
+    students = Student.query.filter_by(class_id=class_id).all()
+    disciplines = ['تأخیر', 'عدم توجه', 'نقض مقررات', 'غیبت غیرموجه']
+    
+    from_date_str = request.args.get('from_date')
+    to_date_str = request.args.get('to_date')
+    from_date = None
+    to_date = None
+    if from_date_str:
+        j_from = jdatetime.datetime.strptime(from_date_str, '%Y/%m/%d').togregorian().date()
+        from_date = j_from
+    if to_date_str:
+        j_to = jdatetime.datetime.strptime(to_date_str, '%Y/%m/%d').togregorian().date()
+        to_date = j_to
+    
+    query = DisciplineScore.query.filter(DisciplineScore.student_id.in_([s.id for s in students]))
+    if from_date:
+        query = query.filter(DisciplineScore.date >= from_date)
+    if to_date:
+        query = query.filter(DisciplineScore.date <= to_date)
+    
+    # pagination
+    page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
+    per_page = 20
+    total = query.count()
+    disc_scores = query.offset(offset).limit(per_page).all()
+    
+    # شمسی
     for disc in disc_scores:
         jdate = jdatetime.date.fromgregorian(date=disc.date).strftime('%Y/%m/%d')
         disc.jdate = jdate
-        disc_scores_with_date.append(disc)
     
-    return render_template('manage_discipline.html', cls=cls, students=students, disciplines=disciplines, disc_scores=disc_scores_with_date)
+    pagination = Pagination(page=page, per_page=per_page, total=total, css_framework='bootstrap5')
     
+    return render_template('manage_discipline.html', cls=cls, students=students, disciplines=disciplines, disc_scores=disc_scores, pagination=pagination, from_date_str=from_date_str, to_date_str=to_date_str)
 @teacher_bp.route('/discipline/add', methods=['POST'])
 @login_required(role='teacher')
 def add_discipline():
