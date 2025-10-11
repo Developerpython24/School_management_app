@@ -132,17 +132,17 @@ def delete_score(score_id):
 @login_required(role='teacher')
 def manage_skills():
     teacher = Teacher.query.get(session['user_id'])
-    class_ids = [tc.class_id for tc in teacher.teacher_classes]
-    students = Student.query.filter(Student.class_id.in_(class_ids)).all()  # فیلتر کلاس
+    class_ids = [tc.class_id for tc in teacher.teacher_classes]  # فیکس: فقط کلاس‌های معلم
+    students = Student.query.filter(Student.class_id.in_(class_ids)).all()  # فیلتر به کلاس‌های معلم
     skill_scores = SkillScore.query.filter_by(teacher_id=teacher.id).all()
     skills = ['مهارت شنوایی', 'مهارت سخنرانی', 'مهارت نوشتاری', 'مهارت حل مسئله', 'مهارت تفکر نقاد', 'مهارت هنری']
     
-    # فیکس: تبدیل تاریخ به شمسی
-    skill_scores_with_date = []
+    # تبدیل شمسی
     for sk in skill_scores:
         jdate = jdatetime.date.fromgregorian(date=sk.date).strftime('%Y/%m/%d')
-        sk.jdate = jdate  # اضافه به object
-        skill_scores_with_date.append(sk)
+        sk.jdate = jdate
+    
+    return render_template('manage_skills.html', students=students, skills=skills, skill_scores=skill_scores)
     
     return render_template('manage_skills.html', students=students, skills=skills, skill_scores=skill_scores_with_date)
 @teacher_bp.route('/skills/add', methods=['POST'])
