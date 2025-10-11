@@ -9,7 +9,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy import func, desc
 import jdatetime  # برای شمسی
 from collections import Counter  # برای most_frequent
-
+from flask_paginate import Pagination, get_page_args
 admin_bp = Blueprint('admin', __name__)
 
 @admin_bp.route('/dashboard')
@@ -475,23 +475,44 @@ def delete_subject(subject_id):
             db.session.rollback()
             flash(f'خطا: {str(e)}', 'error')
     return redirect(url_for('admin.manage_subjects'))
+from flask_paginate import Pagination, get_page_args
 
 @admin_bp.route('/attendance')
 @login_required(role='admin')
 def admin_attendance():
-    # فیکس: فیلتر فقط غایب یا تأخیر
-    attendances = Attendance.query.options(joinedload(Attendance.student), joinedload(Attendance.class_), joinedload(Attendance.teacher)).filter(
-        Attendance.status.in_(['absent', 'late'])
-    ).all()
-    absent_count = len([att for att in attendances if att.status == 'absent'])
-    late_count = len(attendances) - absent_count  # تعداد تأخیر = کل - غایب
+    from_date_str = request.args.get('from_date')
+    to_date_str = request.args.get('to_date')
+    from_date = None
+    to_date = None
+    if from_date_str:
+        j_from = jdatetime.datetime.strptime(from_date_str, '%Y/%m/%d').togregorian().date()
+        from_date = j_from
+    if to_date_str:
+        j_to = jdatetime.datetime.strptime(to_date_str, '%Y/%m/%d').togregorian().date()
+        to_date = j_to
     
-    # تبدیل شمسی
-    for att in attendances:
+    query = Attendance.query.options(joinedload(Attendance.student), joinedload(Attendance.class_), joinedload(Attendance.teacher)).filter(
+        Attendance.status.in_(['absent', 'late'])
+    )
+    if from_date:
+        query = query.filter(Attendance.date >= from_date)
+    if to_date:
+        query = query.filter(Attendance.date <= to_date)
+    
+    # pagination
+    page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
+    per_page = 20
+    total = query.count()
+    pagination_attendances = query.offset(offset).limit(per_page).all()
+    
+    # شمسی
+    for att in pagination_attendances:
         jdate = jdatetime.date.fromgregorian(date=att.date).strftime('%Y/%m/%d')
         att.jdate = jdate
     
-    return render_template('admin_attendance.html', attendances=attendances, absent_count=absent_count, late_count=late_count)
+    pagination = Pagination(page=page, per_page=per_page, total=total, css_framework='bootstrap5')
+    
+    return render_template('admin_attendance.html', attendances=pagination_attendances, pagination=pagination, from_date_str=from_date_str, to_date_str=to_date_str)
 @admin_bp.route('/discipline')
 @login_required(role='admin')
 def admin_discipline():
