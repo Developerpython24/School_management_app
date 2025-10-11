@@ -741,6 +741,19 @@ def create_templates():
             {% extends "base.html" %}
             {% block content %}
             <h2>نمرات {{ subject.name }}</h2>
+            <form method="GET" class="mb-3">
+                <div class="row">
+                    <div class="col-md-3">
+                        <input type="text" name="from_date" class="form-control" placeholder="از تاریخ (شمسی YYYY/MM/DD)" value="{{ from_date_str or '' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="text" name="to_date" class="form-control" placeholder="تا تاریخ (شمسی YYYY/MM/DD)" value="{{ to_date_str or '' }}">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary">فیلتر</button>
+                    </div>
+                </div>
+            </form>
             <form method="POST" action="{{ url_for('teacher.add_score') }}" class="mb-4">
                 <div class="row">
                     <div class="col-md-3">
@@ -782,12 +795,12 @@ def create_templates():
                     <tr>
                         <td>{{ sc.student.first_name }} {{ sc.student.last_name }}</td>
                         <td>{{ sc.score }}</td>
-                        <td>{{ sc.jdate or jdatetime.date.fromgregorian(date=sc.date).strftime('%Y/%m/%d') }}</td>
+                        <td>{{ sc.jdate }}</td>
                         <td>{{ sc.weekday }}</td>
                         <td>
                             <form method="POST" action="{{ url_for('teacher.edit_score', score_id=sc.id) }}" class="d-inline">
                                 <input type="number" name="score" value="{{ sc.score }}" class="form-control d-inline w-auto" style="width:60px;" min="0" max="20">
-                                <input type="text" name="date" value="{{ sc.jdate or jdatetime.date.fromgregorian(date=sc.date).strftime('%Y/%m/%d') }}" class="form-control d-inline w-auto" style="width:100px;">
+                                <input type="text" name="date" value="{{ sc.jdate }}" class="form-control d-inline w-auto" style="width:100px;">
                                 <select name="weekday" class="form-select d-inline w-auto" style="width:80px;">
                                     <option value="شنبه" {% if sc.weekday == 'شنبه' %}selected{% endif %}>شنبه</option>
                                     <option value="یکشنبه" {% if sc.weekday == 'یکشنبه' %}selected{% endif %}>یکشنبه</option>
@@ -798,14 +811,17 @@ def create_templates():
                                 </select>
                                 <button type="submit" class="btn btn-sm btn-warning">ویرایش</button>
                             </form>
-                            <a href="{{ url_for('teacher.delete_score', score_id=sc.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('حذف شود؟')">حذف</a>  <!-- فیکس: url_for درست -->
+                            <a href="{{ url_for('teacher.delete_score', score_id=sc.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('حذف شود؟')">حذف</a>
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="5" class="text-center text-muted">هیچ نمره‌ای ثبت نشده.</td></tr>
+                    <tr><td colspan="5" class="text-center text-muted">هیچ نمره‌ای یافت نشد.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
+            {% if pagination %}
+            {{ pagination.links }}
+            {% endif %}
             {% endblock %}
             {% block scripts %}
             <script>
@@ -822,38 +838,89 @@ def create_templates():
                 }
             </script>
             {% endblock %}''',
-        'admin_attendance.html': '''\
+       'manage_attendance.html': '''\
             {% extends "base.html" %}
             {% block content %}
-            <h2>غایبان و تأخیری‌ها (تعداد: {{ attendances|length }})</h2>
-            {% if absent_count > 0 %}
-            <div class="alert alert-warning">تعداد غایبان: {{ absent_count }}</div>
+            <h2>حضورغیاب - {{ cls.name }}</h2>
+            <form method="GET" class="mb-3">
+                <div class="row">
+                    <div class="col-md-3">
+                        <input type="text" name="from_date" class="form-control" placeholder="از تاریخ (شمسی YYYY/MM/DD)" value="{{ from_date_str or '' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="text" name="to_date" class="form-control" placeholder="تا تاریخ (شمسی YYYY/MM/DD)" value="{{ to_date_str or '' }}">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary">فیلتر</button>
+                    </div>
+                </div>
+            </form>
+            <form method="POST" action="{{ url_for('teacher.update_attendance') }}">
+                <table class="table">
+                    <thead><tr><th>دانش‌آموز</th><th>وضعیت</th><th>تاریخ (شمسی)</th><th>عملیات</th></tr></thead>
+                    <tbody>
+                        {% for student in students %}
+                        <tr>
+                            <td>{{ student.first_name }} {{ student.last_name }}</td>
+                            <td>
+                                <select name="status" class="form-select d-inline w-auto" style="width:100px;">
+                                    <option value="present" {% if att_dict.get(student.id, {}).get('status', '') == 'present' %}selected{% endif %}>حاضر</option>
+                                    <option value="absent" {% if att_dict.get(student.id, {}).get('status', '') == 'absent' %}selected{% endif %}>غایب</option>
+                                    <option value="late" {% if att_dict.get(student.id, {}).get('status', '') == 'late' %}selected{% endif %}>تأخیر</option>
+                                </select>
+                            </td>
+                            <td>
+                                <input type="text" name="date" value="{{ jtoday if not from_date_str else from_date_str }}" class="form-control d-inline w-auto" style="width:120px;" placeholder="شمسی YYYY/MM/DD">
+                            </td>
+                            <td>
+                                <input type="hidden" name="student_id" value="{{ student.id }}">
+                                <input type="hidden" name="class_id" value="{{ cls.id }}">
+                                <button type="submit" class="btn btn-sm btn-primary">به‌روزرسانی</button>
+                                {% if att_dict.get(student.id) %}
+                                <a href="{{ url_for('teacher.delete_attendance', att_id=att_dict[student.id]['att_id']) }}" class="btn btn-sm btn-danger">حذف</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </form>
+            {% if pagination %}
+            {{ pagination.links }}
             {% endif %}
-            {% if late_count > 0 %}
-            <div class="alert alert-info">تعداد تأخیری‌ها: {{ late_count }}</div>
-            {% endif %}
-            <table class="table">
-                <thead><tr><th>کلاس</th><th>دانش‌آموز</th><th>وضعیت</th><th>تاریخ (شمسی)</th><th>معلم</th></tr></thead>
-                <tbody>
-                    {% for att in attendances %}
-                    <tr>
-                        <td>{{ att.class_.name if att.class_ else 'نامشخص' }}</td>
-                        <td>{{ att.student.first_name }} {{ att.student.last_name if att.student else 'نامشخص' }}</td>
-                        <td>{{ att.status }}</td>
-                        <td>{{ att.jdate }}</td>
-                        <td>{{ att.teacher.first_name }} {{ att.teacher.last_name if att.teacher else 'نامشخص' }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% if attendances|length == 0 %}
-            <p class="text-muted">هیچ غایب یا تأخیری ثبت نشده.</p>
-            {% endif %}
+            {% endblock %}
+            {% block scripts %}
+            <script>
+                const dateInput = document.querySelector('input[name="date"]');
+                if (dateInput) {
+                    dateInput.addEventListener('input', function() {
+                        const value = this.value;
+                        if (!/^\d{4}\/\d{2}\/\d{2}$/.test(value)) {
+                            this.setCustomValidity('فرمت: YYYY/MM/DD');
+                        } else {
+                            this.setCustomValidity('');
+                        }
+                    });
+                }
+            </script>
             {% endblock %}''',
         'manage_discipline.html': '''\
             {% extends "base.html" %}
             {% block content %}
             <h2>بی‌انضباطی - {{ cls.name }}</h2>
+            <form method="GET" class="mb-3">
+                <div class="row">
+                    <div class="col-md-3">
+                        <input type="text" name="from_date" class="form-control" placeholder="از تاریخ (شمسی YYYY/MM/DD)" value="{{ from_date_str or '' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="text" name="to_date" class="form-control" placeholder="تا تاریخ (شمسی YYYY/MM/DD)" value="{{ to_date_str or '' }}">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary">فیلتر</button>
+                    </div>
+                </div>
+            </form>
             <form method="POST" action="{{ url_for('teacher.add_discipline') }}" class="mb-4">
                 <div class="row">
                     <div class="col-md-3">
@@ -890,18 +957,48 @@ def create_templates():
                         <td>{{ disc.student.first_name }} {{ disc.student.last_name }}</td>
                         <td>{{ disc.discipline_type }}</td>
                         <td>{{ disc.score }}</td>
-                        <td>{{ disc.jdate }}</td>  # فیکس: شمسی
+                        <td>{{ disc.jdate }}</td>
                         <td><a href="{{ url_for('teacher.delete_discipline', disc_id=disc.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('حذف شود؟')">حذف</a></td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+            {% if pagination %}
+            {{ pagination.links }}
+            {% endif %}
+            {% endblock %}
+            {% block scripts %}
+            <script>
+                const dateInput = document.querySelector('input[name="date"]');
+                if (dateInput) {
+                    dateInput.addEventListener('input', function() {
+                        const value = this.value;
+                        if (!/^\d{4}\/\d{2}\/\d{2}$/.test(value)) {
+                            this.setCustomValidity('فرمت: YYYY/MM/DD');
+                        } else {
+                            this.setCustomValidity('');
+                        }
+                    });
+                }
+            </script>
             {% endblock %}''',
-
          'manage_skills.html': '''\
             {% extends "base.html" %}
             {% block content %}
             <h2>نمرات مهارتی (دانش‌آموزان کلاس‌های شما)</h2>
+            <form method="GET" class="mb-3">
+                <div class="row">
+                    <div class="col-md-3">
+                        <input type="text" name="from_date" class="form-control" placeholder="از تاریخ (شمسی YYYY/MM/DD)" value="{{ from_date_str or '' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="text" name="to_date" class="form-control" placeholder="تا تاریخ (شمسی YYYY/MM/DD)" value="{{ to_date_str or '' }}">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary">فیلتر</button>
+                    </div>
+                </div>
+            </form>
             <form method="POST" action="{{ url_for('teacher.add_skill_score') }}" class="mb-4">
                 <div class="row">
                     <div class="col-md-3">
@@ -943,14 +1040,42 @@ def create_templates():
                     {% endfor %}
                 </tbody>
             </table>
+            {% if pagination %}
+            {{ pagination.links }}
+            {% endif %}
+            {% endblock %}
+            {% block scripts %}
+            <script>
+                const dateInput = document.querySelector('input[name="date"]');
+                if (dateInput) {
+                    dateInput.addEventListener('input', function() {
+                        const value = this.value;
+                        if (!/^\d{4}\/\d{2}\/\d{2}$/.test(value)) {
+                            this.setCustomValidity('فرمت: YYYY/MM/DD');
+                        } else {
+                            this.setCustomValidity('');
+                        }
+                    });
+                }
+            </script>
             {% endblock %}''',
-        'admin_attendance.html': '''\
+       'admin_attendance.html': '''\
             {% extends "base.html" %}
             {% block content %}
-            <h2>لیست حضورغیاب (تعداد: {{ attendances|length }})</h2>
-            {% if absent_count > 0 %}
-            <div class="alert alert-warning">تعداد غایبان: {{ absent_count }}</div>
-            {% endif %}
+            <h2>غایبان و تأخیری‌ها</h2>
+            <form method="GET" class="mb-3">
+                <div class="row">
+                    <div class="col-md-3">
+                        <input type="text" name="from_date" class="form-control" placeholder="از تاریخ (شمسی YYYY/MM/DD)" value="{{ from_date_str or '' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="text" name="to_date" class="form-control" placeholder="تا تاریخ (شمسی YYYY/MM/DD)" value="{{ to_date_str or '' }}">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary">فیلتر</button>
+                    </div>
+                </div>
+            </form>
             <table class="table">
                 <thead><tr><th>کلاس</th><th>دانش‌آموز</th><th>وضعیت</th><th>تاریخ (شمسی)</th><th>معلم</th></tr></thead>
                 <tbody>
@@ -959,20 +1084,17 @@ def create_templates():
                         <td>{{ att.class_.name if att.class_ else 'نامشخص' }}</td>
                         <td>{{ att.student.first_name }} {{ att.student.last_name if att.student else 'نامشخص' }}</td>
                         <td>{{ att.status }}</td>
-                        <td>{{ att.jdate }}</td>  # فیکس: شمسی
+                        <td>{{ att.jdate }}</td>
                         <td>{{ att.teacher.first_name }} {{ att.teacher.last_name if att.teacher else 'نامشخص' }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
-            <h3>غایبان اخیر</h3>
-            <ul>
-                {% for att in attendances if att.status == 'absent' %}
-                <li>{{ att.student.first_name }} {{ att.student.last_name if att.student else 'نامشخص' }} - {{ att.class_.name if att.class_ else 'نامشخص' }} ({{ att.jdate }})</li>
-                {% endfor %}
-            </ul>
+            {% if pagination %}
+            {{ pagination.links }}
+            {% endif %}
             {% if attendances|length == 0 %}
-            <p class="text-muted">هیچ حضورغیابی ثبت نشده. از داشبورد معلم ثبت کنید.</p>
+            <p class="text-muted">هیچ غایب یا تأخیری یافت نشد.</p>
             {% endif %}
             {% endblock %}''',
         'admin_manage_scores.html': '''\
