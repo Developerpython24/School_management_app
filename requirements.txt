@@ -8,3 +8,4 @@ kavenegar==1.1.2
 psycopg2-binary==2.9.6
 SQLAlchemy==2.0.23
 Flask-Mail==0.9.1  # فیکس: برای forgot password
+Flask-Paginate==2023.1.1
