@@ -51,9 +51,8 @@ if __name__ == '__main__':
     with app.app_context():
         try:
             db.create_all()  # جدول‌ها رو بساز
-            init_db()  # فیکس: داده‌های نمونه در production هم (idempotent, فقط اگر وجود نداشته باشه اضافه می‌کنه)
-            if os.environ.get('ENV') == 'dev':
-                create_templates()  # تمپلیت‌ها فقط dev
+            init_db()  # فیکس: رکوردهای نمونه در production هم (idempotent)
+            create_templates()  # تمپلیت‌ها در production هم
             logger.info("App initialized successfully. Server starting on http://127.0.0.1:5000")
         except Exception as e:
             logger.error(f"Init error: {e}")
