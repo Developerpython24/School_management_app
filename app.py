@@ -3,7 +3,7 @@ from datetime import timedelta
 import os
 import sys
 from logging import basicConfig, getLogger
-from flask_mail import Mail
+from flask_mail import Mail  # import Flask-Mail
 
 # ریشه پروژه
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -38,17 +38,33 @@ app.register_blueprint(teacher_bp, url_prefix='/teacher')
 
 db.init_app(app)
 
-# فیکس: @before_first_request برای startup (gunicorn production)
-@app.before_first_request
-def startup_init():
+# فیکس: startup (gunicorn production) – جدول‌ها و داده‌ها بساز
+with app.app_context():
     try:
         db.create_all()  # جدول‌ها رو بساز
         init_db()  # داده‌های نمونه
         create_templates()  # تمپلیت‌ها
-        logger.info("Startup init successful. Tables and data ready.")
+        logger.info("App initialized successfully. Tables and data ready.")
     except Exception as e:
-        logger.error(f"Startup init error: {e}")
+        logger.error(f"Init error: {e}")
         raise
+
+# فیکس: @before_first_request deprecated – با @before_request و flag first_request جایگزین
+first_request = True
+
+@app.before_request
+def before_first_request():
+    global first_request
+    if first_request:
+        # فقط اولین request
+        with app.app_context():
+            try:
+                db.create_all()  # double-check tables
+                logger.info("First request: Tables ready.")
+            except Exception as e:
+                logger.error(f"First request error: {e}")
+                raise
+        first_request = False
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
