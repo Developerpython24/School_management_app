@@ -25,8 +25,10 @@ app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 mail = Mail(app)
 
-# Imports
+# Imports models و db (قبل init_app)
 from models import db
+
+# Blueprints
 from routes.general import general_bp
 from routes.admin import admin_bp
 from routes.teacher import teacher_bp
@@ -36,14 +38,15 @@ app.register_blueprint(general_bp)
 app.register_blueprint(admin_bp, url_prefix='/admin')
 app.register_blueprint(teacher_bp, url_prefix='/teacher')
 
+# فیکس: db.init_app زودتر (قبل هر استفاده از db.app)
 db.init_app(app)
 
 # فیکس: startup (gunicorn production) – جدول‌ها و داده‌ها بساز
 with app.app_context():
     try:
         db.create_all()  # جدول‌ها رو بساز (idempotent)
-        init_db()  # داده‌های نمونه (admin/teacher) – idempotent (فقط اگر وجود نداشته باشه)
-        create_templates()  # تمپلیت‌ها بساز (در production هم، اما repo override می‌کنه)
+        init_db()  # داده‌های نمونه (admin/teacher) – safe
+        create_templates()  # تمپلیت‌ها بساز
         logger.info("App initialized successfully. Tables and data ready.")
     except Exception as e:
         logger.error(f"Init error: {e}")
