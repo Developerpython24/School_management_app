@@ -17,10 +17,16 @@ admin_bp = Blueprint('admin', __name__)
 @admin_bp.route('/dashboard')
 @login_required(role='admin')
 def admin_dashboard():
-    students_count = Student.query.count()
-    teachers_count = Teacher.query.count()
-    classes_count = Class.query.count()
-    admin = Admin.query.first()
+    try:
+        students_count = Student.query.count()
+        teachers_count = Teacher.query.count()
+        classes_count = Class.query.count()
+        admin = Admin.query.first()
+    except Exception as e:
+        flash(f'خطا در بارگیری داشبورد: {str(e)}', 'error')
+        students_count = teachers_count = classes_count = 0
+        admin = Admin(school_name='مدرسه', principal_name='مدیر')  # default safe
+    
     return render_template('admin_dashboard.html',
                            students_count=students_count,
                            teachers_count=teachers_count,
