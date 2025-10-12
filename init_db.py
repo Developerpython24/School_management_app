@@ -1070,10 +1070,10 @@ def create_templates():
                 }
             </script>
             {% endblock %}''',
-       'admin_attendance.html': '''\
+      'admin_attendance.html': '''\
             {% extends "base.html" %}
             {% block content %}
-            <h2>غایبان و تأخیری‌ها</h2>
+            <h2>غایبان و تأخیری‌ها (روز جاری: {{ jtoday }})</h2>
             <form method="GET" class="mb-3">
                 <div class="row">
                     <div class="col-md-3">
@@ -1084,6 +1084,9 @@ def create_templates():
                     </div>
                     <div class="col-md-2">
                         <button type="submit" class="btn btn-primary">فیلتر</button>
+                    </div>
+                    <div class="col-md-2">
+                        <a href="{{ url_for('admin.admin_attendance') }}" class="btn btn-secondary">امروز</a>  # reset to today
                     </div>
                 </div>
             </form>
