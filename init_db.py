@@ -852,17 +852,17 @@ def create_templates():
         'manage_attendance.html': '''\
             {% extends "base.html" %}
             {% block content %}
-            <h2>حضورغیاب - {{ cls.name }} (روز جاری: {{ jtoday }})</h2>
+            <h2>حضورغياب - {{ cls.name }} (روز جاری: {{ jtoday }})</h2>
             <form method="GET" class="mb-3">
                 <div class="row">
                     <div class="col-md-3">
-                        <input type="text" name="from_date" class="form-control" placeholder="از تاریخ (شمسی YYYY/MM/DD)" value="{{ from_date_str or '' }}">
+                        <input type="text" name="from_date" class="form-control" placeholder="از تاريخ (شمسي YYYY/MM/DD)" value="{{ from_date_str or '' }}">
                     </div>
                     <div class="col-md-3">
-                        <input type="text" name="to_date" class="form-control" placeholder="تا تاریخ (شمسی YYYY/MM/DD)" value="{{ to_date_str or '' }}">
+                        <input type="text" name="to_date" class="form-control" placeholder="تا تاريخ (شمسي YYYY/MM/DD)" value="{{ to_date_str or '' }}">
                     </div>
                     <div class="col-md-2">
-                        <button type="submit" class="btn btn-primary">فیلتر</button>
+                        <button type="submit" class="btn btn-primary">فيلتر</button>
                     </div>
                     <div class="col-md-2">
                         <a href="{{ url_for('teacher.manage_attendance', class_id=cls.id) }}" class="btn btn-secondary">امروز</a>
@@ -871,7 +871,7 @@ def create_templates():
             </form>
             <form method="POST" action="{{ url_for('teacher.update_attendance') }}">
                 <table class="table">
-                    <thead><tr><th>دانش‌آموز</th><th>وضعیت</th><th>تاریخ (شمسی)</th><th>عملیات</th></tr></thead>
+                    <thead><tr><th>دانش آموز</th><th>وضعيت</th><th>تاريخ (شمسي)</th><th>عملیات</th></tr></thead>
                     <tbody>
                         {% for student in students %}
                         <tr>
@@ -879,17 +879,17 @@ def create_templates():
                             <td>
                                 <select name="status" class="form-select d-inline w-auto" style="width:100px;">
                                     <option value="present" {% if att_dict.get(student.id, {}).get('status', '') == 'present' %}selected{% endif %}>حاضر</option>
-                                    <option value="absent" {% if att_dict.get(student.id, {}).get('status', '') == 'absent' %}selected{% endif %}>غایب</option>
-                                    <option value="late" {% if att_dict.get(student.id, {}).get('status', '') == 'late' %}selected{% endif %}>تأخیر</option>
+                                    <option value="absent" {% if att_dict.get(student.id, {}).get('status', '') == 'absent' %}selected{% endif %}>غايب</option>
+                                    <option value="late" {% if att_dict.get(student.id, {}).get('status', '') == 'late' %}selected{% endif %}>تاخير</option>
                                 </select>
                             </td>
                             <td>
-                                <input type="text" name="date" value="{{ jtoday if not from_date_str else from_date_str }}" class="form-control d-inline w-auto" style="width:120px;" placeholder="شمسی YYYY/MM/DD">
+                                <input type="text" name="date" value="{{ jtoday if not from_date_str else from_date_str }}" class="form-control d-inline w-auto" style="width:120px;" placeholder="شمسي YYYY/MM/DD">
                             </td>
                             <td>
                                 <input type="hidden" name="student_id" value="{{ student.id }}">
                                 <input type="hidden" name="class_id" value="{{ cls.id }}">
-                                <button type="submit" class="btn btn-sm btn-primary">به‌روزرسانی</button>
+                                <button type="submit" class="btn btn-sm btn-primary">به‌روزرساني</button>
                                 {% if att_dict.get(student.id) %}
                                 <a href="{{ url_for('teacher.delete_attendance', att_id=att_dict[student.id]['att_id']) }}" class="btn btn-sm btn-danger">حذف</a>
                                 {% endif %}
@@ -909,7 +909,15 @@ def create_templates():
                 if (dateInput) {
                     dateInput.addEventListener('input', function() {
                         const value = this.value;
-                        if (!/^\d{4}\/\d{2}\/\d
+                        if (!/^\\d{4}/\\d{2}/\\d{2}$/.test(value)) {  # فیکس: escaped regex
+                            this.setCustomValidity('فرمت: YYYY/MM/DD');
+                        } else {
+                            this.setCustomValidity('');
+                        }
+                    });
+                }
+            </script>
+            {% endblock %}''',
         'manage_discipline.html': '''\
             {% extends "base.html" %}
             {% block content %}
