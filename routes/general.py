@@ -31,23 +31,22 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
         role = request.form.get('role')
+        first_time = request.form.get('first_time') == 'on'  # فیکس: checkbox برای automatic create
         
-        # فیکس: Automatic create if not exist (first-time setup)
         if role == 'admin':
             admin = Admin.query.filter_by(username=username).first()
-            if not admin:
-                # اگر admin وجود نداره، بساز
+            if not admin and first_time:  # فیکس: فقط اگر first_time فعال باشه، بساز
                 admin = Admin(
-                    username='admin',  # default
-                    password_hash=generate_password_hash('admin123'),  # default رمز
+                    username='admin',
+                    password_hash=generate_password_hash('admin123'),
                     school_name='مدرسه راهنمایی نمونه',
                     principal_name='محمد محمدی'
                 )
                 db.session.add(admin)
                 db.session.commit()
-                flash('ادمین پیش‌فرض ساخته شد (username: admin, password: admin123). لطفاً لاگین کنید.', 'success')
+                flash('ادمین پیش‌فرض ساخته شد (username: admin, password: admin123)', 'success')
                 return redirect(url_for('general.login'))
-            if check_password_hash(admin.password_hash, password):
+            if admin and check_password_hash(admin.password_hash, password):
                 session['user_id'] = admin.id
                 session['username'] = admin.username
                 session['role'] = 'admin'
@@ -55,19 +54,18 @@ def login():
                 return redirect(url_for('admin.admin_dashboard'))
         else:
             teacher = Teacher.query.filter_by(username=username).first()
-            if not teacher:
-                # اگر teacher وجود نداره، بساز
+            if not teacher and first_time:  # فیکس: فقط اگر first_time فعال باشه، بساز
                 teacher = Teacher(
-                    username='teacher',  # default
-                    password_hash=generate_password_hash('teacher123'),  # default رمز
+                    username='teacher',
+                    password_hash=generate_password_hash('teacher123'),
                     first_name='علی',
                     last_name='احمدی'
                 )
                 db.session.add(teacher)
                 db.session.commit()
-                flash('معلم پیش‌فرض ساخته شد (username: teacher, password: teacher123). لطفاً لاگین کنید.', 'success')
+                flash('معلم پیش‌فرض ساخته شد (username: teacher, password: teacher123)', 'success')
                 return redirect(url_for('general.login'))
-            if check_password_hash(teacher.password_hash, password):
+            if teacher and check_password_hash(teacher.password_hash, password):
                 session['user_id'] = teacher.id
                 session['username'] = teacher.username
                 session['role'] = 'teacher'
@@ -76,7 +74,7 @@ def login():
                 return redirect(url_for('teacher.teacher_dashboard'))
         
         flash('نام کاربری یا رمز عبور اشتباه است', 'error')
-    return render_template('login.html')
+    return render_template('login.html', first_time=False)  # default false
 @general_bp.route('/forgot_password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
