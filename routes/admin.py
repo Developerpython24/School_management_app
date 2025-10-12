@@ -486,19 +486,29 @@ def admin_attendance():
         to_date_str = request.args.get('to_date')
         from_date = None
         to_date = None
+        
+        # فیکس: default today
+        today = date.today()
+        jtoday = jdatetime.date.fromgregorian(date=today).strftime('%Y/%m/%d')
+        
         if from_date_str:
             j_from = jdatetime.datetime.strptime(from_date_str, '%Y/%m/%d').togregorian().date()
             from_date = j_from
+        else:
+            from_date = today  # default today
+        
         if to_date_str:
             j_to = jdatetime.datetime.strptime(to_date_str, '%Y/%m/%d').togregorian().date()
             to_date = j_to
+        else:
+            to_date = today  # default today
         
-        # فیکس: query ساده بدون joinedload (lazy load default)
-        query = Attendance.query.filter(Attendance.status.in_(['absent', 'late']))
-        if from_date:
-            query = query.filter(Attendance.date >= from_date)
-        if to_date:
-            query = query.filter(Attendance.date <= to_date)
+        # فیکس: query فقط غایب/تأخیر + فیلتر date (default today)
+        query = Attendance.query.filter(
+            Attendance.status.in_(['absent', 'late']),
+            Attendance.date >= from_date,
+            Attendance.date <= to_date
+        ).options(joinedload(Attendance.student), joinedload(Attendance.class_), joinedload(Attendance.teacher))
         
         # pagination
         page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
@@ -513,7 +523,10 @@ def admin_attendance():
         
         pagination = Pagination(page=page, per_page=per_page, total=total, css_framework='bootstrap5')
         
-        return render_template('admin_attendance.html', attendances=attendances, pagination=pagination, from_date_str=from_date_str, to_date_str=to_date_str)
+        return render_template('admin_attendance.html', attendances=attendances, pagination=pagination, from_date_str=from_date_str or jtoday, to_date_str=to_date_str or jtoday, jtoday=jtoday)
+    except Exception as e:
+        flash(f'خطا در بارگیری: {str(e)}', 'error')
+        return redirect(url_for('admin.admin_dashboard'))
     except Exception as e:
         flash(f'خطا در بارگذاری حضورغیاب: {str(e)}', 'error')
         return redirect(url_for('admin.admin_dashboard'))
