@@ -236,26 +236,60 @@ def delete_skill_score(skill_id):
         flash(f'خطا: {str(e)}', 'error')
     return redirect(url_for('teacher.manage_skills'))
 
+from flask_paginate import Pagination, get_page_args  # اگر نیست، اضافه کن
+
 @teacher_bp.route('/attendance/<int:class_id>')
 @login_required(role='teacher')
 def manage_attendance(class_id):
-    teacher = Teacher.query.get(session['user_id'])
-    cls = Class.query.get_or_404(class_id)
-    if not any(tc.class_id == class_id for tc in teacher.teacher_classes):
-        flash('شما دسترسی به این کلاس ندارید', 'error')
+    try:
+        teacher = Teacher.query.get(session['user_id'])
+        cls = Class.query.get_or_404(class_id)
+        if not any(tc.class_id == class_id for tc in teacher.teacher_classes):
+            flash('شما دسترسی به این کلاس ندارید', 'error')
+            return redirect(url_for('teacher.teacher_dashboard'))
+        
+        from_date_str = request.args.get('from_date')
+        to_date_str = request.args.get('to_date')
+        from_date = None
+        to_date = None
+        if from_date_str:
+            j_from = jdatetime.datetime.strptime(from_date_str, '%Y/%m/%d').togregorian().date()
+            from_date = j_from
+        if to_date_str:
+            j_to = jdatetime.datetime.strptime(to_date_str, '%Y/%m/%d').togregorian().date()
+            to_date = j_to
+        
+        students = Student.query.filter_by(class_id=class_id).all()
+        query = Attendance.query.filter_by(class_id=class_id)
+        if from_date:
+            query = query.filter(Attendance.date >= from_date)
+        if to_date:
+            query = query.filter(Attendance.date <= to_date)
+        
+        # pagination
+        page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
+        per_page = 20
+        total = query.count()
+        attendances = query.offset(offset).limit(per_page).all()
+        
+        att_dict = {}
+        for att in attendances:
+            att_dict[att.student_id] = {
+                'status': att.status,
+                'att_id': att.id
+            }
+        
+        # شمسی
+        for att in attendances:
+            jdate = jdatetime.date.fromgregorian(date=att.date).strftime('%Y/%m/%d')
+            att.jdate = jdate
+        
+        pagination = Pagination(page=page, per_page=per_page, total=total, css_framework='bootstrap5')
+        
+        return render_template('manage_attendance.html', cls=cls, students=students, att_dict=att_dict, attendances=attendances, pagination=pagination, from_date_str=from_date_str, to_date_str=to_date_str)
+    except Exception as e:
+        flash(f'خطا در بارگذاری حضورغیاب: {str(e)}', 'error')
         return redirect(url_for('teacher.teacher_dashboard'))
-    students = Student.query.filter_by(class_id=class_id).all()
-    today = date.today()
-    jtoday = jdatetime.date.fromgregorian(date=today).strftime('%Y/%m/%d')
-    attendances = Attendance.query.filter_by(class_id=class_id, date=today).all()
-    att_dict = {}
-    for att in attendances:
-        att_dict[att.student_id] = {
-            'status': att.status,
-            'att_id': att.id
-        }
-    
-    return render_template('manage_attendance.html', cls=cls, students=students, att_dict=att_dict, today=today, jtoday=jtoday)
 
 @teacher_bp.route('/attendance/update', methods=['POST'])
 @login_required(role='teacher')
