@@ -477,51 +477,46 @@ def delete_subject(subject_id):
             db.session.rollback()
             flash(f'خطا: {str(e)}', 'error')
     return redirect(url_for('admin.manage_subjects'))
-from flask_paginate import Pagination, get_page_args
-
 
 @admin_bp.route('/attendance')
 @login_required(role='admin')
 def admin_attendance():
-    from_date_str = request.args.get('from_date')
-    to_date_str = request.args.get('to_date')
-    from_date = None
-    to_date = None
-    if from_date_str:
-        try:
+    try:
+        from_date_str = request.args.get('from_date')
+        to_date_str = request.args.get('to_date')
+        from_date = None
+        to_date = None
+        if from_date_str:
             j_from = jdatetime.datetime.strptime(from_date_str, '%Y/%m/%d').togregorian().date()
             from_date = j_from
-        except:
-            flash('فرمت از تاریخ نامعتبر (YYYY/MM/DD)', 'error')
-    if to_date_str:
-        try:
+        if to_date_str:
             j_to = jdatetime.datetime.strptime(to_date_str, '%Y/%m/%d').togregorian().date()
             to_date = j_to
-        except:
-            flash('فرمت تا تاریخ نامعتبر (YYYY/MM/DD)', 'error')
-    
-    query = Attendance.query.options(joinedload(Attendance.student), joinedload(Attendance.class_), joinedload(Attendance.teacher)).filter(
-        Attendance.status.in_(['absent', 'late'])
-    )
-    if from_date:
-        query = query.filter(Attendance.date >= from_date)
-    if to_date:
-        query = query.filter(Attendance.date <= to_date)
-    
-    # pagination
-    page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
-    per_page = 20  # 20 رکورد/صفحه
-    total = query.count()
-    pagination_attendances = query.offset(offset).limit(per_page).all()
-    
-    # شمسی
-    for att in pagination_attendances:
-        jdate = jdatetime.date.fromgregorian(date=att.date).strftime('%Y/%m/%d')
-        att.jdate = jdate
-    
-    pagination = Pagination(page=page, per_page=per_page, total=total, css_framework='bootstrap5')
-    
-    return render_template('admin_attendance.html', attendances=pagination_attendances, pagination=pagination, from_date_str=from_date_str, to_date_str=to_date_str)
+        
+        # فیکس: query ساده بدون joinedload (lazy load default)
+        query = Attendance.query.filter(Attendance.status.in_(['absent', 'late']))
+        if from_date:
+            query = query.filter(Attendance.date >= from_date)
+        if to_date:
+            query = query.filter(Attendance.date <= to_date)
+        
+        # pagination
+        page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
+        per_page = 20
+        total = query.count()
+        attendances = query.offset(offset).limit(per_page).all()
+        
+        # شمسی
+        for att in attendances:
+            jdate = jdatetime.date.fromgregorian(date=att.date).strftime('%Y/%m/%d')
+            att.jdate = jdate
+        
+        pagination = Pagination(page=page, per_page=per_page, total=total, css_framework='bootstrap5')
+        
+        return render_template('admin_attendance.html', attendances=attendances, pagination=pagination, from_date_str=from_date_str, to_date_str=to_date_str)
+    except Exception as e:
+        flash(f'خطا در بارگذاری حضورغیاب: {str(e)}', 'error')
+        return redirect(url_for('admin.admin_dashboard'))
 def admin_discipline():
     disciplines = DisciplineScore.query.options(joinedload(DisciplineScore.student), joinedload(DisciplineScore.teacher)).all()
     negative_count = len([disc for disc in disciplines if disc.score < 0])
