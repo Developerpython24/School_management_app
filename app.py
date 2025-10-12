@@ -3,7 +3,8 @@ from datetime import timedelta
 import os
 import sys
 from logging import basicConfig, getLogger
-from flask_mail import Mail  # فیکس: import Flask-Mail
+from flask_mail import Mail  # import Flask-Mail
+
 # ریشه پروژه
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -16,8 +17,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:/
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)
 
-
-# فیکس: Flask-Mail config
+# Flask-Mail config
 app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
 app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
 app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'true').lower() == 'true'
@@ -25,7 +25,6 @@ app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 mail = Mail(app)
 
-# ... بقیه کد (imports, blueprints, db.init_app, etc.)
 # Imports
 from models import db
 from routes.general import general_bp
@@ -39,25 +38,20 @@ app.register_blueprint(teacher_bp, url_prefix='/teacher')
 
 db.init_app(app)
 
-# فیکس: create_all در startup (قبل __main__, برای production)
+# فیکس: startup (gunicorn production) – جدول‌ها و داده‌ها بساز
 with app.app_context():
-    db.create_all()  # جدول‌ها رو بساز (idempotent، همیشه OK)
-    if os.environ.get('ENV') == 'dev':
-        init_db()  # داده‌های نمونه فقط dev
-        create_templates()
+    try:
+        db.create_all()  # جدول‌ها رو بساز (idempotent)
+        init_db()  # داده‌های نمونه (admin/teacher) – idempotent (فقط اگر وجود نداشته باشه)
+        create_templates()  # تمپلیت‌ها بساز (در production هم، اما repo override می‌کنه)
+        logger.info("App initialized successfully. Tables and data ready.")
+    except Exception as e:
+        logger.error(f"Init error: {e}")
+        raise
 
 if __name__ == '__main__':
-    db.init_app(app)
-    with app.app_context():
-        try:
-            db.create_all()  # جدول‌ها رو بساز
-            init_db()  # فیکس: رکوردهای نمونه در production هم (idempotent)
-            create_templates()  # تمپلیت‌ها در production هم
-            logger.info("App initialized successfully. Server starting on http://127.0.0.1:5000")
-        except Exception as e:
-            logger.error(f"Init error: {e}")
-            raise
     port = int(os.environ.get('PORT', 5000))
     host = '0.0.0.0'
     debug = os.environ.get('ENV') == 'dev'
+    logger.info("Server starting on http://127.0.0.1:5000")
     app.run(debug=debug, host=host, port=port)
