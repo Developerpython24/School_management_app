@@ -175,6 +175,10 @@ def create_templates():
                                     <label class="form-label">رمز عبور</label>
                                     <input type="password" name="password" class="form-control" required>
                                 </div>
+                                <div class="mb-3 form-check">
+                                    <input type="checkbox" name="first_time" class="form-check-input" id="first_time">
+                                    <label class="form-check-label" for="first_time">اولین بار (ساخت پیش‌فرض)</label>
+                                </div>
                                 <button type="submit" class="btn btn-primary w-100 mb-2">
                                     <i class="bi bi-box-arrow-in-right"></i> ورود
                                 </button>
