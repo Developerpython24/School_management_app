@@ -3,7 +3,7 @@ from datetime import timedelta
 import os
 import sys
 from logging import basicConfig, getLogger
-from flask_mail import Mail  # import Flask-Mail
+from flask_mail import Mail
 
 # ریشه پروژه
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -25,10 +25,8 @@ app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 mail = Mail(app)
 
-# Imports models و db (قبل init_app)
+# Imports
 from models import db
-
-# Blueprints
 from routes.general import general_bp
 from routes.admin import admin_bp
 from routes.teacher import teacher_bp
@@ -38,18 +36,18 @@ app.register_blueprint(general_bp)
 app.register_blueprint(admin_bp, url_prefix='/admin')
 app.register_blueprint(teacher_bp, url_prefix='/teacher')
 
-# فیکس: db.init_app زودتر (قبل هر استفاده از db.app)
 db.init_app(app)
 
-# فیکس: startup (gunicorn production) – جدول‌ها و داده‌ها بساز
-with app.app_context():
+# فیکس: @before_first_request برای startup (gunicorn production)
+@app.before_first_request
+def startup_init():
     try:
-        db.create_all()  # جدول‌ها رو بساز (idempotent)
-        init_db()  # داده‌های نمونه (admin/teacher) – safe
-        create_templates()  # تمپلیت‌ها بساز
-        logger.info("App initialized successfully. Tables and data ready.")
+        db.create_all()  # جدول‌ها رو بساز
+        init_db()  # داده‌های نمونه
+        create_templates()  # تمپلیت‌ها
+        logger.info("Startup init successful. Tables and data ready.")
     except Exception as e:
-        logger.error(f"Init error: {e}")
+        logger.error(f"Startup init error: {e}")
         raise
 
 if __name__ == '__main__':
