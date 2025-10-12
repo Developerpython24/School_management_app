@@ -7,21 +7,27 @@ import os
 
 def init_db():
     try:
-        db.create_all()
-        if not Admin.query.filter_by(username='admin').first():
-            admin = Admin(
-                username='admin',
-                password_hash=generate_password_hash('admin123'),
-                school_name='مدرسه راهنمایی نمونه',
-                principal_name='محمد محمدی'
-            )
-            db.session.add(admin)
+        with db.app.app_context():
+            if not Admin.query.filter_by(username='admin').first():
+                admin = Admin(
+                    username='admin',
+                    password_hash=generate_password_hash('admin123'),
+                    school_name='مدرسه راهنمایی نمونه',
+                    principal_name='محمد محمدی'
+                )
+                db.session.add(admin)
+                db.session.flush()  # flush برای ID
+                print("Admin added")
+            else:
+                print("Admin already exists")
+
             grades = ['هفتم', 'هشتم', 'نهم']
             for grade_name in grades:
                 if not Grade.query.filter_by(name=grade_name).first():
                     grade = Grade(name=grade_name)
                     db.session.add(grade)
             db.session.flush()
+
             class_names = ['توحید', 'نبوت', 'معاد']
             for grade in Grade.query.all():
                 for cname in class_names:
@@ -29,6 +35,8 @@ def init_db():
                     if not Class.query.filter_by(name=cls_name).first():
                         cls = Class(name=cls_name, grade_id=grade.id)
                         db.session.add(cls)
+            db.session.flush()
+
             if not Teacher.query.filter_by(username='teacher').first():
                 teacher = Teacher(
                     username='teacher',
@@ -40,16 +48,16 @@ def init_db():
                 db.session.flush()
                 tc = TeacherClass(teacher_id=teacher.id, class_id=Class.query.first().id)
                 db.session.add(tc)
-            db.session.commit()
-            print("Database initialized with default admin (username: admin, password: admin123) and sample teacher (username: teacher, password: teacher123)")
-        # تست configure
-        Admin.query.first()
-        print("Models configured and tested OK!")
+                db.session.commit()
+                print("Teacher added")
+            else:
+                print("Teacher already exists")
+
+            print("Database initialized with defaults.")
     except Exception as e:
         db.session.rollback()
-        print(f"Error in init_db: {e}")
+        print(f"Init DB error: {e}")
         raise e
-
 
 def create_templates():
     templates_dir = 'templates'
