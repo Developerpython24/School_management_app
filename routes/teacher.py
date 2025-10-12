@@ -252,12 +252,22 @@ def manage_attendance(class_id):
         to_date_str = request.args.get('to_date')
         from_date = None
         to_date = None
+        
+        # فیکس: default today
+        today = date.today()
+        jtoday = jdatetime.date.fromgregorian(date=today).strftime('%Y/%m/%d')
+        
         if from_date_str:
             j_from = jdatetime.datetime.strptime(from_date_str, '%Y/%m/%d').togregorian().date()
             from_date = j_from
+        else:
+            from_date = today  # default today
+        
         if to_date_str:
             j_to = jdatetime.datetime.strptime(to_date_str, '%Y/%m/%d').togregorian().date()
             to_date = j_to
+        else:
+            to_date = today  # default today
         
         students = Student.query.filter_by(class_id=class_id).all()
         query = Attendance.query.filter_by(class_id=class_id)
@@ -286,7 +296,7 @@ def manage_attendance(class_id):
         
         pagination = Pagination(page=page, per_page=per_page, total=total, css_framework='bootstrap5')
         
-        return render_template('manage_attendance.html', cls=cls, students=students, att_dict=att_dict, attendances=attendances, pagination=pagination, from_date_str=from_date_str, to_date_str=to_date_str)
+        return render_template('manage_attendance.html', cls=cls, students=students, att_dict=att_dict, attendances=attendances, pagination=pagination, from_date_str=from_date_str or jtoday, to_date_str=to_date_str or jtoday, jtoday=jtoday)
     except Exception as e:
         flash(f'خطا در بارگذاری حضورغیاب: {str(e)}', 'error')
         return redirect(url_for('teacher.teacher_dashboard'))
