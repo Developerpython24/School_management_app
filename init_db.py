@@ -849,10 +849,10 @@ def create_templates():
                 }
             </script>
             {% endblock %}''',
-       'manage_attendance.html': '''\
+        'manage_attendance.html': '''\
             {% extends "base.html" %}
             {% block content %}
-            <h2>حضورغیاب - {{ cls.name }}</h2>
+            <h2>حضورغیاب - {{ cls.name }} (روز جاری: {{ jtoday }})</h2>
             <form method="GET" class="mb-3">
                 <div class="row">
                     <div class="col-md-3">
@@ -863,6 +863,9 @@ def create_templates():
                     </div>
                     <div class="col-md-2">
                         <button type="submit" class="btn btn-primary">فیلتر</button>
+                    </div>
+                    <div class="col-md-2">
+                        <a href="{{ url_for('teacher.manage_attendance', class_id=cls.id) }}" class="btn btn-secondary">امروز</a>
                     </div>
                 </div>
             </form>
@@ -906,15 +909,7 @@ def create_templates():
                 if (dateInput) {
                     dateInput.addEventListener('input', function() {
                         const value = this.value;
-                        if (!/^\d{4}\/\d{2}\/\d{2}$/.test(value)) {
-                            this.setCustomValidity('فرمت: YYYY/MM/DD');
-                        } else {
-                            this.setCustomValidity('');
-                        }
-                    });
-                }
-            </script>
-            {% endblock %}''',
+                        if (!/^\d{4}\/\d{2}\/\d
         'manage_discipline.html': '''\
             {% extends "base.html" %}
             {% block content %}
