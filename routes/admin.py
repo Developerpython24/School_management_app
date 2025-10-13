@@ -484,6 +484,18 @@ def delete_subject(subject_id):
             flash(f'خطا: {str(e)}', 'error')
     return redirect(url_for('admin.manage_subjects'))
 
+@admin_bp.route('/discipline')
+@login_required(role='admin')
+def admin_discipline():
+    disciplines = DisciplineScore.query.options(joinedload(DisciplineScore.student), joinedload(DisciplineScore.teacher)).all()
+    negative_count = len([disc for disc in disciplines if disc.score < 0])
+    
+    # تبدیل شمسی
+    for disc in disciplines:
+        jdate = jdatetime.date.fromgregorian(date=disc.date).strftime('%Y/%m/%d')
+        disc.jdate = jdate
+    
+    return render_template('admin_discipline.html', disciplines=disciplines, negative_count=negative_count)
 @admin_bp.route('/attendance')
 @login_required(role='admin')
 def admin_attendance():
