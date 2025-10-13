@@ -357,9 +357,23 @@ def update_attendance():
             db.session.rollback()
             flash(f'خطا: {str(e)}', 'error')
     return redirect(url_for('teacher.manage_attendance', class_id=class_id))
+@teacher_bp.route('/attendance/delete/<int:att_id>')
+@login_required(role='teacher')
+def delete_attendance(att_id):
+    att = Attendance.query.get_or_404(att_id)
+    if att.teacher_id != session['user_id']:
+        flash('دسترسی ندارید', 'error')
+        return redirect(url_for('teacher.teacher_dashboard'))
+    class_id = att.class_id
+    try:
+        db.session.delete(att)
+        db.session.commit()
+        flash('حضورغیاب حذف شد', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'خطا در حذف: {str(e)}', 'error')
+    return redirect(url_for('teacher.manage_attendance', class_id=class_id))
 
-
-from flask_paginate import Pagination, get_page_args
 
 @teacher_bp.route('/discipline/<int:class_id>')
 @login_required(role='teacher')
