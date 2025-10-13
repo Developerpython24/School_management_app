@@ -276,6 +276,9 @@ def manage_attendance(class_id):
         if to_date:
             query = query.filter(Attendance.date <= to_date)
         
+        # فیکس: فقط غایب/تأخیر
+        query = query.filter(Attendance.status.in_(['absent', 'late']))
+        
         # pagination
         page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
         per_page = 20
