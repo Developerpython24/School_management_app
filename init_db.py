@@ -840,7 +840,7 @@ def create_templates():
                 if (dateInput) {
                     dateInput.addEventListener('input', function() {
                         const value = this.value;
-                        if (!/^\d{4}\/\d{2}\/\d{2}$/.test(value)) {
+                        if (!/^\\\\d{4}\\\\d{2}\\\\d{2}$/.test(value)) {
                             this.setCustomValidity('فرمت: YYYY/MM/DD');
                         } else {
                             this.setCustomValidity('');
@@ -909,7 +909,7 @@ def create_templates():
                 if (dateInput) {
                     dateInput.addEventListener('input', function() {
                         const value = this.value;
-                        if (!/^\\d{4}/\\d{2}/\\d{2}$/.test(value)) {  # فیکس: escaped regex
+                        if (!/^\\\\d{4}\\\\d{2}\\\\d{2}$/.test(value)) {  # فیکس: escaped regex
                             this.setCustomValidity('فرمت: YYYY/MM/DD');
                         } else {
                             this.setCustomValidity('');
@@ -987,7 +987,7 @@ def create_templates():
                 if (dateInput) {
                     dateInput.addEventListener('input', function() {
                         const value = this.value;
-                        if (!/^\d{4}\/\d{2}\/\d{2}$/.test(value)) {
+                        if (!/^\\\\d{4}\\\\d{2}\\\\d{2}$/.test(value)) {
                             this.setCustomValidity('فرمت: YYYY/MM/DD');
                         } else {
                             this.setCustomValidity('');
@@ -1064,7 +1064,7 @@ def create_templates():
                 if (dateInput) {
                     dateInput.addEventListener('input', function() {
                         const value = this.value;
-                        if (!/^\d{4}\/\d{2}\/\d{2}$/.test(value)) {
+                        if (!/^\\\\d{4}\\\\d{2}\\\\d{2}$/.test(value)) {
                             this.setCustomValidity('فرمت: YYYY/MM/DD');
                         } else {
                             this.setCustomValidity('');
