@@ -42,7 +42,7 @@ db.init_app(app)
 with app.app_context():
     try:
         db.create_all()  # جدول‌ها رو بساز
-        init_db()  # داده‌های نمونه
+        init_db()  # داده‌های نمونه (admin/teacher)
         create_templates()  # تمپلیت‌ها
         logger.info("App initialized successfully. Tables and data ready.")
     except Exception as e:
