@@ -1266,7 +1266,7 @@ def create_templates():
                 });
             </script>
             {% endblock %}''',
-      'reports.html': '''\
+        'reports.html': '''\
             {% extends "base.html" %}
             {% block content %}
             <h2>گزارش‌ها</h2>
@@ -1276,29 +1276,25 @@ def create_templates():
                         <select name="report_type" class="form-select" required>
                             <option value="individual">فردی</option>
                             <option value="class">کلاس</option>
-                            <option value="transcript">کارنامه</option>  # فیکس: گزینه کارنامه
+                            <option value="transcript">کارنامه</option>
                         </select>
                     </div>
-                    <div class="col-md-3 d-none individual">
+                    <div class="col-md-3 individual transcript">
                         <select name="student_id" class="form-select">
                             {% for student in students %}
                             <option value="{{ student.id }}">{{ student.first_name }} {{ student.last_name }}</option>
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-3 d-none class">
+                    <div class="col-md-3 class">
                         <select name="class_id" class="form-select">
                             {% for cls in classes %}
                             <option value="{{ cls.id }}">{{ cls.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-3 d-none transcript">  # فیکس: برای کارنامه
-                        <select name="student_id" class="form-select">
-                            {% for student in students %}
-                            <option value="{{ student.id }}">{{ student.first_name }} {{ student.last_name }}</option>
-                            {% endfor %}
-                        </select>
+                    <div class="col-md-3">
+                        <input type="text" name="period" class="form-control" placeholder="دوره (اختیاری)">
                     </div>
                 </div>
                 <div class="row mb-3">
@@ -1346,11 +1342,11 @@ def create_templates():
                 });
             </script>
             {% endblock %}''',
-        'transcript_report.html': '''\
+       'transcript_report.html': '''\
             {% extends "base.html" %}
             {% block content %}
             <h2>کارنامه {{ student.first_name }} {{ student.last_name }} ({{ from_date_str }} تا {{ to_date_str }})</h2>
-            <a href="{{ url_for('admin.generate_report', report_type='individual', student_id=student.id, from_date=from_date_str, to_date=to_date_str, format='excel') }}" class="btn btn-primary mb-3">دانلود Excel</a>
+            <a href="{{ url_for('admin.generate_report', report_type='transcript', student_id=student.id, from_date=from_date_str, to_date=to_date_str, format='excel') }}" class="btn btn-primary mb-3">دانلود Excel</a>
             <table class="table">
                 <thead><tr><th>درس</th><th>نمره</th><th>تاریخ (شمسی)</th></tr></thead>
                 <tbody>
@@ -1401,7 +1397,107 @@ def create_templates():
                 </tbody>
             </table>
             {% endblock %}''',
-
+        'individual_report.html': '''\
+            {% extends "base.html" %}
+            {% block content %}
+            <h2>گزارش فردی {{ student.first_name }} {{ student.last_name }} ({{ from_date_str }} تا {{ to_date_str }})</h2>
+            <a href="{{ url_for('admin.generate_report', report_type='individual', student_id=student.id, from_date=from_date_str, to_date=to_date_str, format='excel') }}" class="btn btn-primary mb-3">دانلود Excel</a>
+            <div class="row">
+                <div class="col-md-6">
+                    <canvas id="chart" width="400" height="200"></canvas>
+                </div>
+                <div class="col-md-6">
+                    <table class="table">
+                        <thead><tr><th>درس</th><th>نمره</th><th>تاریخ (شمسی)</th></tr></thead>
+                        <tbody>
+                            {% for score in scores %}
+                            <tr>
+                                <td>{{ score.subject_ref.name }}</td>
+                                <td>{{ score.score }}</td>
+                                <td>{{ score.jdate }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <script>
+                const ctx = document.getElementById('chart').getContext('2d');
+                const labels = {{ scores | map(attribute='jdate') | list | tojson }};
+                const data = {{ scores | map(attribute='score') | list | tojson }};
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'نمرات',
+                            data: data,
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            borderWidth: 2,
+                            fill: false
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: { beginAtZero: true }
+                        }
+                    }
+                });
+            </script>
+            {% endblock %}''',
+        
+        'class_report.html': '''\
+            {% extends "base.html" %}
+            {% block content %}
+            <h2>گزارش کلاس {{ class_obj.name }} ({{ from_date_str }} تا {{ to_date_str }})</h2>
+            <a href="{{ url_for('admin.generate_report', report_type='class', class_id=class_obj.id, from_date=from_date_str, to_date=to_date_str, format='excel') }}" class="btn btn-primary mb-3">دانلود Excel</a>
+            <div class="row">
+                <div class="col-md-6">
+                    <canvas id="chart" width="400" height="200"></canvas>
+                </div>
+                <div class="col-md-6">
+                    <table class="table">
+                        <thead><tr><th>دانش‌آموز</th><th>میانگین نمره</th></tr></thead>
+                        <tbody>
+                            {% for student in students %}
+                            <tr>
+                                <td>{{ student.first_name }} {{ student.last_name }}</td>
+                                <td>{{ (student.scores | map(attribute='score') | sum / (student.scores | length) if student.scores else 0) | round(2) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <script>
+                const ctx = document.getElementById('chart').getContext('2d');
+                const labels = {{ students | map(attribute='first_name') | list | tojson }};
+                const data = [{% for student in students %}
+                    {{ (student.scores | map(attribute='score') | sum / (student.scores | length) if student.scores else 0) | round(2) }}{% if not loop.last %}, {% endif %}
+                {% endfor %}];
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'میانگین نمرات',
+                            data: data,
+                            backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                            borderColor: 'rgba(153, 102, 255, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: { beginAtZero: true }
+                        }
+                    }
+                });
+            </script>
+            {% endblock %}''',
     }
            
     for filename, content in templates.items():
