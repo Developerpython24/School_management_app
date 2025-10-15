@@ -158,8 +158,18 @@ def delete_score(score_id):
 @login_required(role='teacher')
 def manage_skills():
     teacher = Teacher.query.get(session['user_id'])
-    class_ids = [tc.class_id for tc in teacher.teacher_classes]
-    students = Student.query.filter(Student.class_id.in_(class_ids)).all()
+    class_ids = [tc.class_id for tc in teacher.teacher_classes]  # کلاس‌های معلم
+    if not class_ids:
+        flash('هیچ کلاسی اختصاص داده نشده', 'error')
+        return redirect(url_for('teacher.teacher_dashboard'))
+    
+    # فیکس: group students by class_id (dict: class_name: list of students)
+    students_by_class = {}
+    for class_id in class_ids:
+        cls = Class.query.get(class_id)
+        if cls:
+            students = Student.query.filter_by(class_id=class_id).all()
+            students_by_class[cls.name] = students  # {'نهم توحید': [student1, student2, ...]}
     
     from_date_str = request.args.get('from_date')
     to_date_str = request.args.get('to_date')
@@ -192,7 +202,7 @@ def manage_skills():
     skills = ['مهارت شنوایی', 'مهارت سخنرانی', 'مهارت نوشتاری', 'مهارت حل مسئله', 'مهارت تفکر نقاد', 'مهارت هنری']
     pagination = Pagination(page=page, per_page=per_page, total=total, css_framework='bootstrap5')
     
-    return render_template('manage_skills.html', students=students, skills=skills, skill_scores=skill_scores, pagination=pagination, from_date_str=from_date_str, to_date_str=to_date_str)
+    return render_template('manage_skills.html', students_by_class=students_by_class, skills=skills, skill_scores=skill_scores, pagination=pagination, from_date_str=from_date_str, to_date_str=to_date_str)
 @teacher_bp.route('/skills/add', methods=['POST'])
 @login_required(role='teacher')
 def add_skill_score():
