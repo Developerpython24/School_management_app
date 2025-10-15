@@ -567,7 +567,7 @@ def reports():
 @admin_bp.route('/reports/generate', methods=['POST'])
 @login_required(role='admin')
 def generate_report():
-    report_type = request.form.get('report_type')  # individual/class
+    report_type = request.form.get('report_type')  # individual/class/transcript
     student_id = request.form.get('student_id') or None
     class_id = request.form.get('class_id') or None
     from_date_str = request.form.get('from_date') or None  # شمسی از
@@ -627,7 +627,8 @@ def generate_report():
             if format_type == 'excel':
                 return generate_excel_report(student, scores, skills, f"{from_date_str or ''} to {to_date_str or ''}")
             else:
-                return render_template('chart_report.html', student=student, scores=scores, report_type=report_type, report_data=report_data, period_type=period_type)
+                # فیکس: نمایش در صفحه + دکمه دانلود
+                return render_template('chart_report.html', student=student, scores=scores, skills=skills, report_type=report_type, report_data=report_data, period_type=period_type, from_date_str=from_date_str, to_date_str=to_date_str)
 
         elif report_type == 'class' and class_id:
             class_obj = Class.query.options(joinedload(Class.students).joinedload(Student.scores)).get(class_id)
@@ -645,7 +646,7 @@ def generate_report():
                 for s in students:
                     s_scores = [sc for sc in all_scores if sc.student_id == s.id]
                     avg_data[s.id] = sum(sc.score for sc in s_scores) / len(s_scores) if s_scores else 0
-                report_data = [avg_data[s.id] for s in students]  # list برای چارت
+                report_data = [avg_data[s.id] for s in students]
             elif report_option == 'total':
                 report_data = [sum(sc.score for sc in all_scores if sc.student_id == s.id) for s in students]
             elif report_option == 'most_frequent':
@@ -667,10 +668,46 @@ def generate_report():
             if format_type == 'excel':
                 return generate_class_excel_report(class_obj, students, f"{from_date_str or ''} to {to_date_str or ''}", include_skills)
             else:
-                return render_template('class_chart_report.html', class_obj=class_obj, students=students, report_type=report_type, report_data=report_data, period_type=period_type)
+                # فیکس: نمایش در صفحه + دکمه دانلود
+                return render_template('class_chart_report.html', class_obj=class_obj, students=students, report_type=report_type, report_data=report_data, period_type=period_type, from_date_str=from_date_str, to_date_str=to_date_str)
+
+        elif report_type == 'transcript' and student_id:  # فیکس: کارنامه فردی
+            student = Student.query.options(joinedload(Student.scores)).get(student_id)
+            base_query = Score.query.filter_by(student_id=student_id)
+            if from_date:
+                base_query = base_query.filter(Score.date >= from_date)
+            if to_date:
+                base_query = base_query.filter(Score.date <= to_date)
+            scores = base_query.all()
+            skills = SkillScore.query.filter_by(student_id=student_id).all() if include_skills else []
+
+            if format_type == 'excel':
+                # کارنامه Excel
+                return generate_transcript_excel(student, scores, skills, f"{from_date_str or ''} to {to_date_str or ''}")
+            else:
+                # کارنامه HTML
+                return render_template('transcript_report.html', student=student, scores=scores, skills=skills, from_date_str=from_date_str, to_date_str=to_date_str)
+
+        elif report_type == 'transcript' and class_id:  # کارنامه کلاسی
+            class_obj = Class.query.options(joinedload(Class.students).joinedload(Student.scores)).get(class_id)
+            students = class_obj.students if class_obj.students else []
+            base_query = Score.query.join(Student).filter(Student.class_id == class_id)
+            if from_date:
+                base_query = base_query.filter(Score.date >= from_date)
+            if to_date:
+                base_query = base_query.filter(Score.date <= to_date)
+            all_scores = base_query.all()
+
+            if format_type == 'excel':
+                # کارنامه کلاسی Excel
+                return generate_class_transcript_excel(class_obj, students, all_scores, f"{from_date_str or ''} to {to_date_str or ''}")
+            else:
+                # کارنامه کلاسی HTML
+                return render_template('class_transcript_report.html', class_obj=class_obj, students=students, all_scores=all_scores, from_date_str=from_date_str, to_date_str=to_date_str)
 
         flash('لطفا همه فیلدها را پر کنید', 'error')
         return redirect(url_for('admin.reports'))
     except Exception as e:
         flash(f'خطا در گزارش: {str(e)}', 'error')
         return redirect(url_for('admin.reports'))
+    
