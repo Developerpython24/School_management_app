@@ -710,4 +710,39 @@ def generate_report():
     except Exception as e:
         flash(f'خطا در گزارش: {str(e)}', 'error')
         return redirect(url_for('admin.reports'))
+def generate_transcript_excel(student, scores, skills, period):
+    output = BytesIO()
+    wb = Workbook()
+    ws = wb.active
+    ws.title = f'کارنامه {student.first_name} {student.last_name}'
+    ws.append(['درس', 'نمره', 'تاریخ (شمسی)'])
+    for score in scores:
+        jdate = jdatetime.date.fromgregorian(date=score.date).strftime('%Y/%m/%d')
+        ws.append([score.subject_ref.name, score.score, jdate])
+    if skills:
+        ws_skills = wb.create_sheet('مهارت‌ها')
+        ws_skills.append(['مهارت', 'نمره', 'تاریخ (شمسی)'])
+        for skill in skills:
+            jdate = jdatetime.date.fromgregorian(date=skill.date).strftime('%Y/%m/%d')
+            ws_skills.append([skill.skill_name, skill.score, jdate])
+    wb.save(output)
+    output.seek(0)
+    filename = f'transcript_{student.first_name}_{student.last_name}_{period}.xlsx'
+    return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name=filename)
+
+def generate_class_transcript_excel(class_obj, students, all_scores, period):
+    output = BytesIO()
+    wb = Workbook()
+    ws = wb.active
+    ws.title = f'کارنامه کلاس {class_obj.name}'
+    ws.append(['کد دانش‌آموزی', 'نام', 'نام خانوادگی', 'درس', 'نمره', 'تاریخ (شمسی)'])
+    for student in students:
+        s_scores = [sc for sc in all_scores if sc.student_id == student.id]
+        for sc in s_scores:
+            jdate = jdatetime.date.fromgregorian(date=sc.date).strftime('%Y/%m/%d')
+            ws.append([student.student_id, student.first_name, student.last_name, sc.subject_ref.name, sc.score, jdate])
+    wb.save(output)
+    output.seek(0)
+    filename = f'class_transcript_{class_obj.name}_{period}.xlsx'
+    return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name=filename)
     
