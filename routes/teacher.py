@@ -29,43 +29,47 @@ def teacher_dashboard():
 @teacher_bp.route('/scores/<int:subject_id>')
 @login_required(role='teacher')
 def manage_scores(subject_id):
-    subject = Subject.query.get_or_404(subject_id)
-    if subject.teacher_id != session['user_id']:
-        flash('شما دسترسی به این درس ندارید', 'error')
+    try:
+        subject = Subject.query.get_or_404(subject_id)
+        if subject.teacher_id != session['user_id']:
+            flash('شما دسترسی به این درس ندارید', 'error')
+            return redirect(url_for('teacher.teacher_dashboard'))
+        
+        students = Student.query.filter_by(class_id=subject.class_id).all()
+        from_date_str = request.args.get('from_date')
+        to_date_str = request.args.get('to_date')
+        from_date = None
+        to_date = None
+        if from_date_str:
+            j_from = jdatetime.datetime.strptime(from_date_str, '%Y/%m/%d').togregorian().date()
+            from_date = j_from
+        if to_date_str:
+            j_to = jdatetime.datetime.strptime(to_date_str, '%Y/%m/%d').togregorian().date()
+            to_date = j_to
+        
+        query = Score.query.filter_by(subject_id=subject_id).options(joinedload(Score.student))
+        if from_date:
+            query = query.filter(Score.date >= from_date)
+        if to_date:
+            query = query.filter(Score.date <= to_date)
+        
+        # pagination
+        page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
+        per_page = 20
+        total = query.count()
+        scores = query.offset(offset).limit(per_page).all()
+        
+        # شمسی
+        for sc in scores:
+            jdate = jdatetime.date.fromgregorian(date=sc.date).strftime('%Y/%m/%d')
+            sc.jdate = jdate
+        
+        pagination = Pagination(page=page, per_page=per_page, total=total, css_framework='bootstrap5')
+        
+        return render_template('manage_scores.html', subject=subject, students=students, scores=scores, pagination=pagination, from_date_str=from_date_str, to_date_str=to_date_str)
+    except Exception as e:
+        flash(f'خطا در بارگیری نمرات: {str(e)}', 'error')
         return redirect(url_for('teacher.teacher_dashboard'))
-    
-    students = Student.query.filter_by(class_id=subject.class_id).all()
-    from_date_str = request.args.get('from_date')
-    to_date_str = request.args.get('to_date')
-    from_date = None
-    to_date = None
-    if from_date_str:
-        j_from = jdatetime.datetime.strptime(from_date_str, '%Y/%m/%d').togregorian().date()
-        from_date = j_from
-    if to_date_str:
-        j_to = jdatetime.datetime.strptime(to_date_str, '%Y/%m/%d').togregorian().date()
-        to_date = j_to
-    
-    query = Score.query.filter_by(subject_id=subject_id).options(joinedload(Score.student))
-    if from_date:
-        query = query.filter(Score.date >= from_date)
-    if to_date:
-        query = query.filter(Score.date <= to_date)
-    
-    # pagination
-    page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
-    per_page = 38
-    total = query.count()
-    scores = query.offset(offset).limit(per_page).all()
-    
-    # شمسی
-    for sc in scores:
-        jdate = jdatetime.date.fromgregorian(date=sc.date).strftime('%Y/%m/%d')
-        sc.jdate = jdate
-    
-    pagination = Pagination(page=page, per_page=per_page, total=total, css_framework='bootstrap5')
-    
-    return render_template('manage_scores.html', subject=subject, students=students, scores=scores, pagination=pagination, from_date_str=from_date_str, to_date_str=to_date_str)
 @teacher_bp.route('/scores/add', methods=['POST'])
 @login_required(role='teacher')
 def add_score():
