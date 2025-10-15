@@ -54,7 +54,7 @@ def manage_scores(subject_id):
     
     # pagination
     page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
-    per_page = 20
+    per_page = 38
     total = query.count()
     scores = query.offset(offset).limit(per_page).all()
     
@@ -190,7 +190,7 @@ def manage_skills():
     
     # pagination
     page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
-    per_page = 20
+    per_page = 38
     total = query.count()
     skill_scores = query.offset(offset).limit(per_page).all()
     
@@ -291,7 +291,7 @@ def manage_attendance(class_id):
         
         # pagination
         page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
-        per_page = 20
+        per_page = 38
         total = query.count()
         attendances = query.offset(offset).limit(per_page).all()
         
@@ -401,12 +401,22 @@ def manage_discipline(class_id):
     to_date_str = request.args.get('to_date')
     from_date = None
     to_date = None
+    
+    # فیکس: default today
+    today = date.today()
+    jtoday = jdatetime.date.fromgregorian(date=today).strftime('%Y/%m/%d')
+    
     if from_date_str:
         j_from = jdatetime.datetime.strptime(from_date_str, '%Y/%m/%d').togregorian().date()
         from_date = j_from
+    else:
+        from_date = today  # default today
+    
     if to_date_str:
         j_to = jdatetime.datetime.strptime(to_date_str, '%Y/%m/%d').togregorian().date()
         to_date = j_to
+    else:
+        to_date = today  # default today
     
     query = DisciplineScore.query.filter(DisciplineScore.student_id.in_([s.id for s in students]))
     if from_date:
@@ -416,7 +426,7 @@ def manage_discipline(class_id):
     
     # pagination
     page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
-    per_page = 20
+    per_page = 38
     total = query.count()
     disc_scores = query.offset(offset).limit(per_page).all()
     
@@ -427,7 +437,7 @@ def manage_discipline(class_id):
     
     pagination = Pagination(page=page, per_page=per_page, total=total, css_framework='bootstrap5')
     
-    return render_template('manage_discipline.html', cls=cls, students=students, disciplines=disciplines, disc_scores=disc_scores, pagination=pagination, from_date_str=from_date_str, to_date_str=to_date_str)
+    return render_template('manage_discipline.html', cls=cls, students=students, disciplines=disciplines, disc_scores=disc_scores, pagination=pagination, from_date_str=from_date_str or jtoday, to_date_str=to_date_str or jtoday, jtoday=jtoday)
 @teacher_bp.route('/discipline/add', methods=['POST'])
 @login_required(role='teacher')
 def add_discipline():
