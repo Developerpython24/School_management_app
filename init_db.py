@@ -1401,6 +1401,8 @@ def create_templates():
                 </tbody>
             </table>
             {% endblock %}''',
+
+    }
            
     for filename, content in templates.items():
         file_path = os.path.join(templates_dir, filename)
