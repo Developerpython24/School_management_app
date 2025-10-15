@@ -712,4 +712,3 @@ def generate_class_transcript_excel(class_obj, students, all_scores, period):
     output.seek(0)
     filename = f'class_transcript_{class_obj.name}_{period}.xlsx'
     return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name=filename)
-    
