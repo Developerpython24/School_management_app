@@ -1266,7 +1266,7 @@ def create_templates():
                 });
             </script>
             {% endblock %}''',
-       'reports.html': '''\
+      'reports.html': '''\
             {% extends "base.html" %}
             {% block content %}
             <h2>گزارش‌ها</h2>
@@ -1276,6 +1276,7 @@ def create_templates():
                         <select name="report_type" class="form-select" required>
                             <option value="individual">فردی</option>
                             <option value="class">کلاس</option>
+                            <option value="transcript">کارنامه</option>  # فیکس: گزینه کارنامه
                         </select>
                     </div>
                     <div class="col-md-3 d-none individual">
@@ -1292,8 +1293,12 @@ def create_templates():
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-3">
-                        <input type="text" name="period" class="form-control" placeholder="دوره (اختیاری)">
+                    <div class="col-md-3 d-none transcript">  # فیکس: برای کارنامه
+                        <select name="student_id" class="form-select">
+                            {% for student in students %}
+                            <option value="{{ student.id }}">{{ student.first_name }} {{ student.last_name }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
                 </div>
                 <div class="row mb-3">
@@ -1304,26 +1309,99 @@ def create_templates():
                         <input type="text" name="to_date" class="form-control" placeholder="تا تاریخ (شمسی YYYY/MM/DD)">
                     </div>
                     <div class="col-md-3">
+                        <select name="period_type" class="form-select">
+                            <option value="daily">روزانه</option>
+                            <option value="monthly">ماهانه</option>
+                            <option value="quarterly">فصلی</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
                         <label class="form-check-label"><input type="checkbox" name="include_skills" class="form-check-input"> شامل مهارت‌ها</label>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <select name="report_option" class="form-select">
+                            <option value="average">میانگین نمرات</option>
+                            <option value="total">جمع نمرات</option>
+                            <option value="most_frequent">پرتکرارترین نمره</option>
+                        </select>
                     </div>
                     <div class="col-md-3">
                         <select name="format" class="form-select">
-                            <option value="html">چارت</option>
-                            <option value="excel">Excel</option>
+                            <option value="html">چارت + جدول (نمایش + دانلود)</option>
+                            <option value="excel">Excel (دانلود)</option>
                         </select>
                     </div>
+                    <div class="col-md-6">
+                        <button type="submit" class="btn btn-primary">تولید گزارش</button>
+                    </div>
                 </div>
-                <button type="submit" class="btn btn-primary">تولید</button>
             </form>
             <script>
                 document.querySelector('[name="report_type"]').addEventListener('change', function() {
                     document.querySelector('.individual').classList.toggle('d-none', this.value !== 'individual');
                     document.querySelector('.class').classList.toggle('d-none', this.value !== 'class');
+                    document.querySelector('.transcript').classList.toggle('d-none', this.value !== 'transcript');
                 });
             </script>
             {% endblock %}''',
-            }
-   
+        'transcript_report.html': '''\
+            {% extends "base.html" %}
+            {% block content %}
+            <h2>کارنامه {{ student.first_name }} {{ student.last_name }} ({{ from_date_str }} تا {{ to_date_str }})</h2>
+            <a href="{{ url_for('admin.generate_report', report_type='individual', student_id=student.id, from_date=from_date_str, to_date=to_date_str, format='excel') }}" class="btn btn-primary mb-3">دانلود Excel</a>
+            <table class="table">
+                <thead><tr><th>درس</th><th>نمره</th><th>تاریخ (شمسی)</th></tr></thead>
+                <tbody>
+                    {% for score in scores %}
+                    <tr>
+                        <td>{{ score.subject_ref.name }}</td>
+                        <td>{{ score.score }}</td>
+                        <td>{{ jdatetime.date.fromgregorian(date=score.date).strftime('%Y/%m/%d') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% if skills %}
+            <h3>مهارت‌ها</h3>
+            <table class="table">
+                <thead><tr><th>مهارت</th><th>نمره</th><th>تاریخ (شمسی)</th></tr></thead>
+                <tbody>
+                    {% for skill in skills %}
+                    <tr>
+                        <td>{{ skill.skill_name }}</td>
+                        <td>{{ skill.score }}</td>
+                        <td>{{ jdatetime.date.fromgregorian(date=skill.date).strftime('%Y/%m/%d') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+            {% endblock %}''',
+        
+        'class_transcript_report.html': '''\
+            {% extends "base.html" %}
+            {% block content %}
+            <h2>کارنامه کلاس {{ class_obj.name }} ({{ from_date_str }} تا {{ to_date_str }})</h2>
+            <a href="{{ url_for('admin.generate_report', report_type='transcript', class_id=class_obj.id, from_date=from_date_str, to_date=to_date_str, format='excel') }}" class="btn btn-primary mb-3">دانلود Excel</a>
+            <table class="table">
+                <thead><tr><th>کد دانش‌آموزی</th><th>نام</th><th>نام خانوادگی</th><th>درس</th><th>نمره</th><th>تاریخ (شمسی)</th></tr></thead>
+                <tbody>
+                    {% for score in all_scores %}
+                    <tr>
+                        <td>{{ score.student.student_id }}</td>
+                        <td>{{ score.student.first_name }}</td>
+                        <td>{{ score.student.last_name }}</td>
+                        <td>{{ score.subject_ref.name }}</td>
+                        <td>{{ score.score }}</td>
+                        <td>{{ jdatetime.date.fromgregorian(date=score.date).strftime('%Y/%m/%d') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endblock %}''',
+           
     for filename, content in templates.items():
         file_path = os.path.join(templates_dir, filename)
         with open(file_path, 'w', encoding='utf-8') as f:
