@@ -608,10 +608,10 @@ def generate_report():
             # فیلتر دوره
             if period_type == 'monthly':
                 current_month = jdatetime.date.today().month
-                scores = [s for s in scores if jdatetime.date.fromgregorian(s.date).month == current_month]
+                scores = [s for s in scores if jdatetime.date.fromgregorian(date=s.date).month == current_month]
             elif period_type == 'quarterly':
                 current_quarter = (jdatetime.date.today().month - 1) // 3 + 1
-                scores = [s for s in scores if ((jdatetime.date.fromgregorian(s.date).month - 1) // 3 + 1) == current_quarter]
+                scores = [s for s in scores if ((jdatetime.date.fromgregorian(date=s.date).month - 1) // 3 + 1) == current_quarter]
 
             # گزینه گزارش
             if report_option == 'total':
@@ -627,8 +627,8 @@ def generate_report():
             if format_type == 'excel':
                 return generate_excel_report(student, scores, skills, f"{from_date_str or ''} to {to_date_str or ''}")
             else:
-                # فیکس: نمایش در صفحه + دکمه دانلود
-                return render_template('chart_report.html', student=student, scores=scores, skills=skills, report_type=report_type, report_data=report_data, period_type=period_type, from_date_str=from_date_str, to_date_str=to_date_str)
+                # فیکس: نمایش جدول + چارت + دکمه دانلود
+                return render_template('individual_report.html', student=student, scores=scores, skills=skills, report_type=report_type, report_data=report_data, period_type=period_type, from_date_str=from_date_str, to_date_str=to_date_str)
 
         elif report_type == 'class' and class_id:
             class_obj = Class.query.options(joinedload(Class.students).joinedload(Student.scores)).get(class_id)
@@ -660,56 +660,23 @@ def generate_report():
             # فیلتر دوره
             if period_type == 'monthly':
                 current_month = jdatetime.date.today().month
-                all_scores = [sc for sc in all_scores if jdatetime.date.fromgregorian(sc.date).month == current_month]
+                all_scores = [sc for sc in all_scores if jdatetime.date.fromgregorian(date=sc.date).month == current_month]
             elif period_type == 'quarterly':
                 current_quarter = (jdatetime.date.today().month - 1) // 3 + 1
-                all_scores = [sc for sc in all_scores if ((jdatetime.date.fromgregorian(sc.date).month - 1) // 3 + 1) == current_quarter]
+                all_scores = [sc for sc in all_scores if ((jdatetime.date.fromgregorian(date=sc.date).month - 1) // 3 + 1) == current_quarter]
 
             if format_type == 'excel':
                 return generate_class_excel_report(class_obj, students, f"{from_date_str or ''} to {to_date_str or ''}", include_skills)
             else:
-                # فیکس: نمایش در صفحه + دکمه دانلود
-                return render_template('class_chart_report.html', class_obj=class_obj, students=students, report_type=report_type, report_data=report_data, period_type=period_type, from_date_str=from_date_str, to_date_str=to_date_str)
-
-        elif report_type == 'transcript' and student_id:  # فیکس: کارنامه فردی
-            student = Student.query.options(joinedload(Student.scores)).get(student_id)
-            base_query = Score.query.filter_by(student_id=student_id)
-            if from_date:
-                base_query = base_query.filter(Score.date >= from_date)
-            if to_date:
-                base_query = base_query.filter(Score.date <= to_date)
-            scores = base_query.all()
-            skills = SkillScore.query.filter_by(student_id=student_id).all() if include_skills else []
-
-            if format_type == 'excel':
-                # کارنامه Excel
-                return generate_transcript_excel(student, scores, skills, f"{from_date_str or ''} to {to_date_str or ''}")
-            else:
-                # کارنامه HTML
-                return render_template('transcript_report.html', student=student, scores=scores, skills=skills, from_date_str=from_date_str, to_date_str=to_date_str)
-
-        elif report_type == 'transcript' and class_id:  # کارنامه کلاسی
-            class_obj = Class.query.options(joinedload(Class.students).joinedload(Student.scores)).get(class_id)
-            students = class_obj.students if class_obj.students else []
-            base_query = Score.query.join(Student).filter(Student.class_id == class_id)
-            if from_date:
-                base_query = base_query.filter(Score.date >= from_date)
-            if to_date:
-                base_query = base_query.filter(Score.date <= to_date)
-            all_scores = base_query.all()
-
-            if format_type == 'excel':
-                # کارنامه کلاسی Excel
-                return generate_class_transcript_excel(class_obj, students, all_scores, f"{from_date_str or ''} to {to_date_str or ''}")
-            else:
-                # کارنامه کلاسی HTML
-                return render_template('class_transcript_report.html', class_obj=class_obj, students=students, all_scores=all_scores, from_date_str=from_date_str, to_date_str=to_date_str)
+                # فیکس: نمایش جدول + چارت + دکمه دانلود
+                return render_template('class_report.html', class_obj=class_obj, students=students, all_scores=all_scores, report_type=report_type, report_data=report_data, period_type=period_type, from_date_str=from_date_str, to_date_str=to_date_str)
 
         flash('لطفا همه فیلدها را پر کنید', 'error')
         return redirect(url_for('admin.reports'))
     except Exception as e:
         flash(f'خطا در گزارش: {str(e)}', 'error')
         return redirect(url_for('admin.reports'))
+        
 def generate_transcript_excel(student, scores, skills, period):
     output = BytesIO()
     wb = Workbook()
