@@ -918,10 +918,10 @@ def create_templates():
                 }
             </script>
             {% endblock %}''',
-        'manage_discipline.html': '''\
+       'manage_discipline.html': '''\
             {% extends "base.html" %}
             {% block content %}
-            <h2>بی‌انضباطی - {{ cls.name }}</h2>
+            <h2>بی‌انضباطی - {{ cls.name }} (روز جاری: {{ jtoday }})</h2>
             <form method="GET" class="mb-3">
                 <div class="row">
                     <div class="col-md-3">
@@ -932,6 +932,9 @@ def create_templates():
                     </div>
                     <div class="col-md-2">
                         <button type="submit" class="btn btn-primary">فیلتر</button>
+                    </div>
+                    <div class="col-md-2">
+                        <a href="{{ url_for('teacher.manage_discipline', class_id=cls.id) }}" class="btn btn-secondary">امروز</a>  # reset to today
                     </div>
                 </div>
             </form>
@@ -956,7 +959,7 @@ def create_templates():
                         <input type="number" name="score" class="form-control" placeholder="نمره (منفی)" step="0.25" required>
                     </div>
                     <div class="col-md-2">
-                        <input type="text" name="date" class="form-control" placeholder="شمسی YYYY/MM/DD" required>
+                        <input type="text" name="date" value="{{ jtoday if not from_date_str else from_date_str }}" class="form-control" placeholder="شمسی YYYY/MM/DD" required>  # default jtoday
                     </div>
                     <div class="col-md-2">
                         <button type="submit" class="btn btn-primary w-100">ثبت</button>
