@@ -1270,7 +1270,7 @@ def create_templates():
                 });
             </script>
             {% endblock %}''',
-        'reports.html': '''\
+       'reports.html': '''\
             {% extends "base.html" %}
             {% block content %}
             <h2>گزارش‌ها</h2>
@@ -1280,18 +1280,19 @@ def create_templates():
                         <select name="report_type" class="form-select" required>
                             <option value="individual">فردی</option>
                             <option value="class">کلاس</option>
-                            <option value="transcript">کارنامه</option>
                         </select>
                     </div>
-                    <div class="col-md-3 individual transcript">
-                        <select name="student_id" class="form-select">
+                    <div class="col-md-3">
+                        <select name="student_id" class="form-select" id="student_select">  <!-- فیکس: ID برای JS -->
+                            <option value="">انتخاب دانش‌آموز</option>
                             {% for student in students %}
                             <option value="{{ student.id }}">{{ student.first_name }} {{ student.last_name }}</option>
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-3 class">
-                        <select name="class_id" class="form-select">
+                    <div class="col-md-3">
+                        <select name="class_id" class="form-select" id="class_select">
+                            <option value="">انتخاب کلاس</option>
                             {% for cls in classes %}
                             <option value="{{ cls.id }}">{{ cls.name }}</option>
                             {% endfor %}
@@ -1329,7 +1330,8 @@ def create_templates():
                     </div>
                     <div class="col-md-3">
                         <select name="format" class="form-select">
-                            <option value="html">چارت + جدول (نمایش + دانلود)</option>
+                            <option value="view">مشاهده در صفحه (جدول + چارت)</option>
+                            <option value="chart">چارت (نمایش)</option>
                             <option value="excel">Excel (دانلود)</option>
                         </select>
                     </div>
@@ -1340,9 +1342,10 @@ def create_templates():
             </form>
             <script>
                 document.querySelector('[name="report_type"]').addEventListener('change', function() {
-                    document.querySelector('.individual').classList.toggle('d-none', this.value !== 'individual');
-                    document.querySelector('.class').classList.toggle('d-none', this.value !== 'class');
-                    document.querySelector('.transcript').classList.toggle('d-none', this.value !== 'transcript');
+                    const studentSelect = document.getElementById('student_select');
+                    const classSelect = document.getElementById('class_select');
+                    studentSelect.classList.toggle('d-none', this.value !== 'individual');
+                    classSelect.classList.toggle('d-none', this.value !== 'class');
                 });
             </script>
             {% endblock %}''',
