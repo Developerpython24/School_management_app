@@ -1,12 +1,15 @@
+import jdatetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
 from models import db, Teacher, Subject, Student, Score, SkillScore, Attendance, DisciplineScore, Class, TeacherClass,  Admin
 from routes.general import login_required
 from datetime import datetime, date
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload  # فیکس: import joinedload
-import jdatetime
 from kavenegar import KavenegarAPI  # برای SMS
 from flask_paginate import Pagination, get_page_args
+
+
+
 
 api_key = '5A56496148425477335667304857624E582F4F3453597739435656354B6F516E627434327A327A56336F633D'  # جایگزین با API key خودت
 api = KavenegarAPI(api_key)
@@ -40,8 +43,8 @@ def manage_scores(subject_id):
         from_date = None
         to_date = None
         
-        # فیکس: default today
-        today = date.today()  # 16 اکتبر 2025
+        # فیکس: default today (16 اکتبر 2025)
+        today = date(2025, 10, 16)
         jtoday = jdatetime.date.fromgregorian(date=today).strftime('%Y/%m/%d')
         
         if from_date_str:
@@ -56,17 +59,18 @@ def manage_scores(subject_id):
         else:
             to_date = today  # default today
         
-        # query فقط برای نمرات مرتبط با دانش‌آموزان کلاس
+        # query فقط برای نمرات مرتبط با دانش‌آموزان کلاس + فیلتر تاریخ
         student_ids = [s.id for s in students]
-        query = Score.query.filter(Score.subject_id == subject_id, Score.student_id.in_(student_ids))
-        if from_date:
-            query = query.filter(Score.date >= from_date)
-        if to_date:
-            query = query.filter(Score.date <= to_date)
+        query = Score.query.filter(
+            Score.subject_id == subject_id,
+            Score.student_id.in_(student_ids),  # محدود به دانش‌آموزان کلاس
+            Score.date >= from_date,
+            Score.date <= to_date
+        ).options(joinedload(Score.student))
         
         # pagination
         page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
-        per_page = len(students)  # فیکس: تعداد ردیف‌ها = تعداد دانش‌آموزان
+        per_page = len(students)  # فیکس: تعداد ردیف‌ها = تعداد دانش‌آموزان (حداکثر یک ردیف برای هر کدام)
         total = query.count()
         scores = query.offset(offset).limit(per_page).all()
         
