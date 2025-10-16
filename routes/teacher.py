@@ -3,10 +3,10 @@ from models import db, Teacher, Subject, Student, Score, SkillScore, Attendance,
 from routes.general import login_required
 from datetime import datetime, date
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import joinedload  # فیکس: import joinedload
 import jdatetime
 from kavenegar import KavenegarAPI  # برای SMS
 from flask_paginate import Pagination, get_page_args
-
 
 api_key = '5A56496148425477335667304857624E582F4F3453597739435656354B6F516E627434327A327A56336F633D'  # جایگزین با API key خودت
 api = KavenegarAPI(api_key)
@@ -55,7 +55,7 @@ def manage_scores(subject_id):
         
         # pagination
         page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
-        per_page = 20
+        per_page = 38
         total = query.count()
         scores = query.offset(offset).limit(per_page).all()
         
