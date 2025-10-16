@@ -25,19 +25,6 @@ def teacher_dashboard():
         subjects_by_class[cls.name] = subjects
     return render_template('teacher_dashboard.html', teacher=teacher, classes=classes, subjects_by_class=subjects_by_class)
 
-
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
-from models import db, Teacher, Subject, Student, Score, SkillScore, Attendance, DisciplineScore, Class, TeacherClass, Admin
-from routes.general import login_required
-from datetime import datetime, date
-from sqlalchemy.orm import joinedload
-from sqlalchemy.exc import IntegrityError
-import jdatetime
-from flask_paginate import Pagination, get_page_args
-from kavenegar import KavenegarAPI  # برای SMS
-
-teacher_bp = Blueprint('teacher', __name__)
-
 @teacher_bp.route('/scores/<int:subject_id>')
 @login_required(role='teacher')
 def manage_scores(subject_id):
