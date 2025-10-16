@@ -751,7 +751,7 @@ def create_templates():
         'manage_scores.html': '''\
             {% extends "base.html" %}
             {% block content %}
-            <h2>نمرات {{ subject.name }}</h2>
+            <h2>نمرات {{ subject.name }} (روز جاری: {{ jtoday }})</h2>
             <form method="GET" class="mb-3">
                 <div class="row">
                     <div class="col-md-3">
@@ -762,6 +762,9 @@ def create_templates():
                     </div>
                     <div class="col-md-2">
                         <button type="submit" class="btn btn-primary">فیلتر</button>
+                    </div>
+                    <div class="col-md-2">
+                        <a href="{{ url_for('teacher.manage_scores', subject_id=subject.id) }}" class="btn btn-secondary">امروز</a>
                     </div>
                 </div>
             </form>
@@ -779,7 +782,7 @@ def create_templates():
                         <input type="number" name="score" class="form-control" placeholder="نمره" step="0.25" min="0" max="20" required>
                     </div>
                     <div class="col-md-2">
-                        <input type="text" name="date" class="form-control" placeholder="تاریخ شمسی YYYY/MM/DD" required>
+                        <input type="text" name="date" class="form-control" placeholder="تاریخ شمسی YYYY/MM/DD" value="{{ jtoday }}" required>  <!-- فیکس: default jtoday -->
                     </div>
                     <div class="col-md-3">
                         <select name="weekday" class="form-select" required>
@@ -788,7 +791,7 @@ def create_templates():
                             <option value="یکشنبه">یکشنبه</option>
                             <option value="دوشنبه">دوشنبه</option>
                             <option value="سه‌شنبه">سه‌شنبه</option>
-                            <option value="چهارشنبه">چهارشنبه</option>
+                            <option value="چهارشنبه" {% if jdatetime.date.fromgregorian(date=date(2025, 10, 16)).weekday() == 3 %}selected{% endif %}>چهارشنبه</option>  <!-- امروز انتخاب‌شده -->
                             <option value="پنجشنبه">پنجشنبه</option>
                         </select>
                     </div>
