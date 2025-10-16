@@ -26,6 +26,18 @@ def teacher_dashboard():
     return render_template('teacher_dashboard.html', teacher=teacher, classes=classes, subjects_by_class=subjects_by_class)
 
 
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
+from models import db, Teacher, Subject, Student, Score, SkillScore, Attendance, DisciplineScore, Class, TeacherClass, Admin
+from routes.general import login_required
+from datetime import datetime, date
+from sqlalchemy.orm import joinedload
+from sqlalchemy.exc import IntegrityError
+import jdatetime
+from flask_paginate import Pagination, get_page_args
+from kavenegar import KavenegarAPI  # برای SMS
+
+teacher_bp = Blueprint('teacher', __name__)
+
 @teacher_bp.route('/scores/<int:subject_id>')
 @login_required(role='teacher')
 def manage_scores(subject_id):
@@ -40,14 +52,26 @@ def manage_scores(subject_id):
         to_date_str = request.args.get('to_date')
         from_date = None
         to_date = None
+        
+        # فیکس: default today
+        today = date.today()  # 16 اکتبر 2025
+        jtoday = jdatetime.date.fromgregorian(date=today).strftime('%Y/%m/%d')
+        
         if from_date_str:
             j_from = jdatetime.datetime.strptime(from_date_str, '%Y/%m/%d').togregorian().date()
             from_date = j_from
+        else:
+            from_date = today  # default today
+        
         if to_date_str:
             j_to = jdatetime.datetime.strptime(to_date_str, '%Y/%m/%d').togregorian().date()
             to_date = j_to
+        else:
+            to_date = today  # default today
         
-        query = Score.query.filter_by(subject_id=subject_id).options(joinedload(Score.student))
+        # query فقط برای نمرات مرتبط با دانش‌آموزان کلاس
+        student_ids = [s.id for s in students]
+        query = Score.query.filter(Score.subject_id == subject_id, Score.student_id.in_(student_ids))
         if from_date:
             query = query.filter(Score.date >= from_date)
         if to_date:
@@ -55,7 +79,7 @@ def manage_scores(subject_id):
         
         # pagination
         page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
-        per_page = 38
+        per_page = len(students)  # فیکس: تعداد ردیف‌ها = تعداد دانش‌آموزان
         total = query.count()
         scores = query.offset(offset).limit(per_page).all()
         
@@ -66,7 +90,7 @@ def manage_scores(subject_id):
         
         pagination = Pagination(page=page, per_page=per_page, total=total, css_framework='bootstrap5')
         
-        return render_template('manage_scores.html', subject=subject, students=students, scores=scores, pagination=pagination, from_date_str=from_date_str, to_date_str=to_date_str)
+        return render_template('manage_scores.html', subject=subject, students=students, scores=scores, pagination=pagination, from_date_str=from_date_str or jtoday, to_date_str=to_date_str or jtoday, jtoday=jtoday)
     except Exception as e:
         flash(f'خطا در بارگیری نمرات: {str(e)}', 'error')
         return redirect(url_for('teacher.teacher_dashboard'))
