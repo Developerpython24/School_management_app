@@ -487,15 +487,48 @@ def delete_subject(subject_id):
 @admin_bp.route('/discipline')
 @login_required(role='admin')
 def admin_discipline():
-    disciplines = DisciplineScore.query.options(joinedload(DisciplineScore.student), joinedload(DisciplineScore.teacher)).all()
-    negative_count = len([disc for disc in disciplines if disc.score < 0])
+    from_date_str = request.args.get('from_date')
+    to_date_str = request.args.get('to_date')
+    from_date = None
+    to_date = None
     
-    # تبدیل شمسی
+    # فیکس: default today
+    today = date.today()  # 16 اکتبر 2025
+    jtoday = jdatetime.date.fromgregorian(date=today).strftime('%Y/%m/%d')
+    
+    if from_date_str:
+        j_from = jdatetime.datetime.strptime(from_date_str, '%Y/%m/%d').togregorian().date()
+        from_date = j_from
+    else:
+        from_date = today  # default today
+    
+    if to_date_str:
+        j_to = jdatetime.datetime.strptime(to_date_str, '%Y/%m/%d').togregorian().date()
+        to_date = j_to
+    else:
+        to_date = today  # default today
+    
+    # query فقط بی‌انضباطی‌های فیلترشده
+    query = DisciplineScore.query.options(joinedload(DisciplineScore.student), joinedload(DisciplineScore.teacher)).filter(
+        DisciplineScore.date >= from_date,
+        DisciplineScore.date <= to_date
+    )
+    
+    # pagination
+    page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
+    per_page = 38
+    total = query.count()
+    disciplines = query.offset(offset).limit(per_page).all()
+    
+    # شمسی
     for disc in disciplines:
         jdate = jdatetime.date.fromgregorian(date=disc.date).strftime('%Y/%m/%d')
         disc.jdate = jdate
     
-    return render_template('admin_discipline.html', disciplines=disciplines, negative_count=negative_count)
+    negative_count = len([disc for disc in disciplines if disc.score < 0])
+    pagination = Pagination(page=page, per_page=per_page, total=total, css_framework='bootstrap5')
+    
+    return render_template('admin_discipline.html', disciplines=disciplines, negative_count=negative_count, pagination=pagination, from_date_str=from_date_str or jtoday, to_date_str=to_date_str or jtoday, jtoday=jtoday)
 @admin_bp.route('/attendance')
 @login_required(role='admin')
 def admin_attendance():
