@@ -1181,26 +1181,43 @@ def create_templates():
         'admin_discipline.html': '''\
             {% extends "base.html" %}
             {% block content %}
-            <h2>لیست بی‌انضباطی (تعداد: {{ disciplines|length }})</h2>
-            {% if negative_count > 0 %}
-            <div class="alert alert-danger">تعداد نکات منفی: {{ negative_count }}</div>
-            {% endif %}
+            <h2>بی‌انضباطی (روز جاری: {{ jtoday }})</h2>
+            <form method="GET" class="mb-3">
+                <div class="row">
+                    <div class="col-md-3">
+                        <input type="text" name="from_date" class="form-control" placeholder="از تاریخ (شمسی YYYY/MM/DD)" value="{{ from_date_str or '' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="text" name="to_date" class="form-control" placeholder="تا تاریخ (شمسی YYYY/MM/DD)" value="{{ to_date_str or '' }}">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary">فیلتر</button>
+                    </div>
+                    <div class="col-md-2">
+                        <a href="{{ url_for('admin.admin_discipline') }}" class="btn btn-secondary">امروز</a>  <!-- reset to today -->
+                    </div>
+                </div>
+            </form>
+            <div class="alert alert-info">تعداد موارد منفی: {{ negative_count }}</div>
             <table class="table">
                 <thead><tr><th>دانش‌آموز</th><th>نوع</th><th>نمره</th><th>تاریخ (شمسی)</th><th>معلم</th></tr></thead>
                 <tbody>
                     {% for disc in disciplines %}
                     <tr>
-                        <td>{{ disc.student.first_name }} {{ disc.student.last_name if disc.student else 'نامشخص' }}</td>
+                        <td>{{ disc.student.first_name }} {{ disc.student.last_name }}</td>
                         <td>{{ disc.discipline_type }}</td>
                         <td>{{ disc.score }}</td>
-                        <td>{{ disc.jdate }}</td>  <!-- فیکس: استفاده از jdate پاس‌شده -->
-                        <td>{{ disc.teacher.first_name }} {{ disc.teacher.last_name if disc.teacher else 'نامشخص' }}</td>
+                        <td>{{ disc.jdate }}</td>
+                        <td>{{ disc.teacher.first_name }} {{ disc.teacher.last_name }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+            {% if pagination %}
+            {{ pagination.links }}
+            {% endif %}
             {% if disciplines|length == 0 %}
-            <p class="text-muted">هیچ بی‌انضباطی ثبت نشده. از داشبورد معلم ثبت کنید.</p>
+            <p class="text-muted">هیچ مورد بی‌انضباطی یافت نشد.</p>
             {% endif %}
             {% endblock %}''',
         'admin_reports.html': '''\
