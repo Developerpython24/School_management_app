@@ -177,29 +177,29 @@ def delete_score(score_id):
 @login_required(role='teacher')
 def manage_skills():
     teacher = Teacher.query.get(session['user_id'])
-    class_ids = [tc.class_id for tc in teacher.teacher_classes]  # کلاس‌های معلم
-    if not class_ids:
-        flash('هیچ کلاسی اختصاص داده نشده', 'error')
-        return redirect(url_for('teacher.teacher_dashboard'))
-    
-    # فیکس: group students by class_id (dict class_name: list students)
-    students_by_class = {}
-    for class_id in class_ids:
-        cls = Class.query.get(class_id)
-        if cls:
-            students = Student.query.filter_by(class_id=class_id).all()  # فقط دانش‌آموزان همان کلاس
-            students_by_class[cls.name] = students  # {'نهم توحید': [student1, student2, ...]}
+    class_ids = [tc.class_id for tc in teacher.teacher_classes]
+    students = Student.query.filter(Student.class_id.in_(class_ids)).all()
     
     from_date_str = request.args.get('from_date')
     to_date_str = request.args.get('to_date')
     from_date = None
     to_date = None
+    
+    # فیکس: default today
+    today = date.today()  # 16 اکتبر 2025
+    jtoday = jdatetime.date.fromgregorian(date=today).strftime('%Y/%m/%d')
+    
     if from_date_str:
         j_from = jdatetime.datetime.strptime(from_date_str, '%Y/%m/%d').togregorian().date()
         from_date = j_from
+    else:
+        from_date = today  # default today
+    
     if to_date_str:
         j_to = jdatetime.datetime.strptime(to_date_str, '%Y/%m/%d').togregorian().date()
         to_date = j_to
+    else:
+        to_date = today  # default today
     
     query = SkillScore.query.filter_by(teacher_id=teacher.id)
     if from_date:
@@ -209,7 +209,7 @@ def manage_skills():
     
     # pagination
     page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
-    per_page = 20
+    per_page = 38
     total = query.count()
     skill_scores = query.offset(offset).limit(per_page).all()
     
@@ -220,8 +220,7 @@ def manage_skills():
     
     skills = ['مهارت شنوایی', 'مهارت سخنرانی', 'مهارت نوشتاری', 'مهارت حل مسئله', 'مهارت تفکر نقاد', 'مهارت هنری']
     pagination = Pagination(page=page, per_page=per_page, total=total, css_framework='bootstrap5')
-    
-    return render_template('manage_skills.html', students_by_class=students_by_class, skills=skills, skill_scores=skill_scores, pagination=pagination, from_date_str=from_date_str, to_date_str=to_date_str)
+    return render_template('manage_skills.html', students=students, skills=skills, skill_scores=skill_scores, pagination=pagination, from_date_str=from_date_str or jtoday, to_date_str=to_date_str or jtoday, jtoday=jtoday)
 @teacher_bp.route('/skills/add', methods=['POST'])
 @login_required(role='teacher')
 def add_skill_score():
@@ -264,8 +263,6 @@ def delete_skill_score(skill_id):
         db.session.rollback()
         flash(f'خطا: {str(e)}', 'error')
     return redirect(url_for('teacher.manage_skills'))
-
-from flask_paginate import Pagination, get_page_args  # اگر نیست، اضافه کن
 
 @teacher_bp.route('/attendance/<int:class_id>')
 @login_required(role='teacher')
