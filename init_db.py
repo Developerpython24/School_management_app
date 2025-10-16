@@ -764,7 +764,7 @@ def create_templates():
                         <button type="submit" class="btn btn-primary">فیلتر</button>
                     </div>
                     <div class="col-md-2">
-                        <a href="{{ url_for('teacher.manage_scores', subject_id=subject.id) }}" class="btn btn-secondary">امروز</a>
+                        <a href="{{ url_for('teacher.manage_scores', subject_id=subject.id) }}" class="btn btn-secondary">امروز</a>  <!-- reset to today -->
                     </div>
                 </div>
             </form>
@@ -782,7 +782,7 @@ def create_templates():
                         <input type="number" name="score" class="form-control" placeholder="نمره" step="0.25" min="0" max="20" required>
                     </div>
                     <div class="col-md-2">
-                        <input type="text" name="date" class="form-control" placeholder="تاریخ شمسی YYYY/MM/DD" value="{{ jtoday }}" required>  <!-- فیکس: default jtoday -->
+                        <input type="text" name="date" class="form-control" placeholder="تاریخ شمسی YYYY/MM/DD" value="{{ jtoday }}" required>  <!-- default jtoday -->
                     </div>
                     <div class="col-md-3">
                         <select name="weekday" class="form-select" required>
@@ -791,7 +791,7 @@ def create_templates():
                             <option value="یکشنبه">یکشنبه</option>
                             <option value="دوشنبه">دوشنبه</option>
                             <option value="سه‌شنبه">سه‌شنبه</option>
-                            <option value="چهارشنبه" {% if jdatetime.date.fromgregorian(date=date(2025, 10, 16)).weekday() == 3 %}selected{% endif %}>چهارشنبه</option>  <!-- امروز انتخاب‌شده -->
+                            <option value="چهارشنبه">چهارشنبه</option>
                             <option value="پنجشنبه">پنجشنبه</option>
                         </select>
                     </div>
